@@ -15,6 +15,7 @@ type Claims struct {
 
 type JWTIf interface {
 	GenerateToken(userID uuid.UUID) (string, error)
+	Decode(tokenString string, claims *Claims) error
 }
 
 type JWTStruct struct {
@@ -39,4 +40,17 @@ func (j *JWTStruct) GenerateToken(userID uuid.UUID) (string, error) {
 		UserID: userID,
 	}
 	return jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims).SignedString([]byte(j.SecretKey))
+}
+
+func (j *JWTStruct) Decode(tokenString string, claims *Claims) error {
+	token, err := jwtlib.ParseWithClaims(tokenString, claims, func(_ *jwtlib.Token) (any, error) {
+		return []byte(j.SecretKey), nil
+	})
+	if err != nil {
+		return err
+	}
+	if !token.Valid {
+		return jwtlib.ErrSignatureInvalid
+	}
+	return nil
 }
