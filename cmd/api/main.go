@@ -6,5 +6,7 @@ import (
 )
 
 func main() {
-	server.NewHTTPServer().Start(env.AppEnv.AppHost + ":" + env.AppEnv.AppPort)
+	httpServer := server.NewHTTPServer()
+	httpServer.MountMiddlewares()
+	httpServer.Start(env.AppEnv.AppHost + ":" + env.AppEnv.AppPort)
 }
