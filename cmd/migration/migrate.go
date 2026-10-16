@@ -12,6 +12,14 @@ func main() {
 		return
 	}
 
+	err = db.Migrator().DropTable(&entity.User{})
+	if err != nil {
+		log.Error(log.LogInfo{
+			"error": err.Error(),
+		}, "[Migration][main] failed to drop user table")
+		return
+	}
+
 	err = db.Migrator().CreateTable(&entity.User{})
 	if err != nil {
 		log.Error(log.LogInfo{
