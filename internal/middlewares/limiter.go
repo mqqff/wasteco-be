@@ -3,6 +3,7 @@ package middlewares
 import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
+	"github.com/gofiber/utils/v2"
 	"time"
 )
 
@@ -12,6 +13,13 @@ func (m *Middleware) Limit(max int, exp time.Duration) fiber.Handler {
 		Expiration: exp,
 		KeyGenerator: func(c fiber.Ctx) string {
 			return c.Get("x-forwarded-for")
+		},
+		LimitReached: func(c fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error_code": "too_many_request",
+				"error":      utils.StatusMessage(fiber.StatusTooManyRequests),
+				"message":    "too many request, try again later",
+			})
 		},
 	})
 }
