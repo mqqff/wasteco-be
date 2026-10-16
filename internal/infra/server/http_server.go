@@ -2,19 +2,29 @@ package server
 
 import (
 	"github.com/bytedance/sonic"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
+	AuthHandler "github.com/mqqff/wasteco-be/internal/app/auth/interface/rest"
+	AuthUsecase "github.com/mqqff/wasteco-be/internal/app/auth/usecase"
+	UserHandler "github.com/mqqff/wasteco-be/internal/app/user/interface/rest"
+	UserRepo "github.com/mqqff/wasteco-be/internal/app/user/repository"
+	UserUsecase "github.com/mqqff/wasteco-be/internal/app/user/usecase"
 	"github.com/mqqff/wasteco-be/internal/domain/env"
 	"github.com/mqqff/wasteco-be/internal/middlewares"
+	"github.com/mqqff/wasteco-be/pkg/jwt"
 	"github.com/mqqff/wasteco-be/pkg/log"
+	"github.com/mqqff/wasteco-be/pkg/oauth"
+	"gorm.io/gorm"
 	"time"
 )
 
 type HTTPServerItf interface {
 	Start(socket string)
 	MountMiddlewares()
+	MountRoutes(db *gorm.DB)
 	GetApp() *fiber.App
 }
 
@@ -62,4 +72,25 @@ func (s *HTTPServer) MountMiddlewares() {
 	s.app.Use(helmet.New())
 	s.app.Use(compress.New())
 	s.app.Use(middlewares.RequireAPIKey())
+}
+
+func (s *HTTPServer) MountRoutes(db *gorm.DB) {
+	app := s.app
+
+	api := app.Group("/api")
+	v1 := api.Group("/v1")
+
+	jwt := jwt.JWT
+	oauth := oauth.OAuth
+	validator := validator.New()
+
+	middleware := middlewares.NewMiddleware(jwt)
+
+	userRepo := UserRepo.NewUserRepo(db)
+
+	authUsecase := AuthUsecase.NewAuthUsecase(userRepo, oauth, jwt)
+	userUsecase := UserUsecase.NewUserUsecase(userRepo)
+
+	AuthHandler.NewAuthHandler(v1, authUsecase, validator)
+	UserHandler.NewUserHandler(v1, middleware, userUsecase)
 }
