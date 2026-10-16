@@ -1,6 +1,8 @@
 package env
 
 import (
+	"time"
+
 	"github.com/mqqff/wasteco-be/pkg/log"
 	"github.com/spf13/viper"
 )
@@ -11,11 +13,16 @@ type Env struct {
 	AppPort string `mapstructure:"APP_PORT"`
 	AppEnv  string `mapstructure:"APP_ENV"`
 
+	APIKey string `mapstructure:"API_KEY"`
+
 	DBName string `mapstructure:"DB_NAME"`
 	DBHost string `mapstructure:"DB_HOST"`
 	DBPort string `mapstructure:"DB_PORT"`
 	DBUser string `mapstructure:"DB_USER"`
 	DBPass string `mapstructure:"DB_PASS"`
+
+	JWTSecretKey   string        `mapstructure:"JWT_SECRET_KEY"`
+	JWTExpiredTime time.Duration `mapstructure:"JWT_EXPIRED_TIME"`
 }
 
 var AppEnv = getEnv()
