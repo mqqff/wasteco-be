@@ -10,6 +10,7 @@ require (
 	github.com/gofiber/fiber/v3 v3.6.1
 	github.com/gofiber/utils/v2 v2.6.2
 	golang.org/x/oauth2 v0.37.0
+	google.golang.org/api v0.304.0
 	github.com/spf13/viper v1.21.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/mysql v1.6.0
