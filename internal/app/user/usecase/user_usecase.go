@@ -1,11 +1,36 @@
 package usecase
 
-import "github.com/mqqff/wasteco-be/internal/app/user/repository"
+import (
+	"github.com/google/uuid"
+	"github.com/mqqff/wasteco-be/internal/app/user/repository"
+	"github.com/mqqff/wasteco-be/internal/domain/dto"
+)
+
+type UserUsecaseItf interface {
+	GetProfile(userID uuid.UUID) (dto.UserProfile, error)
+}
 
 type UserUsecase struct {
 	userRepo repository.UserRepoItf
 }
 
-func NewUserUsecase(r repository.UserRepoItf) *UserUsecase {
-	return &UserUsecase{userRepo: r}
+func NewUserUsecase(r repository.UserRepoItf) UserUsecaseItf {
+	return &UserUsecase{
+		userRepo: r,
+	}
+}
+
+func (u *UserUsecase) GetProfile(userID uuid.UUID) (dto.UserProfile, error) {
+	user, err := u.userRepo.Show(dto.UserParam{ID: userID})
+	if err != nil {
+		return dto.UserProfile{}, err
+	}
+
+	userProfile := dto.UserProfile{
+		ID:    user.ID.String(),
+		Email: user.Email,
+		Name:  user.Name,
+	}
+
+	return userProfile, err
 }
