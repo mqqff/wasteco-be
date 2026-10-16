@@ -3,6 +3,7 @@ module github.com/mqqff/wasteco-be
 go 1.26.8
 
 require (
+	github.com/bytedance/sonic v1.15.4
 	github.com/rs/zerolog v1.35.1
 	github.com/google/uuid v1.6.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
