@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gofiber/contrib/v3/zerolog v1.1.7
+	github.com/go-playground/validator/v10 v10.30.5
 	github.com/gofiber/fiber/v3 v3.6.1
 	github.com/gofiber/utils/v2 v2.6.2
 	golang.org/x/oauth2 v0.37.0
