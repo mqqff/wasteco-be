@@ -29,9 +29,9 @@ func NewImpactUsecase(r repository.ImpactRepoItf) ImpactUsecaseItf {
 	}
 }
 
-var indonesianMonths = [...]string{
-	"", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-	"Juli", "Agustus", "September", "Oktober", "November", "Desember",
+var englishMonths = [...]string{
+	"", "January", "February", "March", "April", "May", "June",
+	"July", "August", "September", "October", "November", "December",
 }
 
 func (u *ImpactUsecase) GetMonthlySummary(userID uuid.UUID, month, year int) (dto.ImpactSummaryResponse, error) {
@@ -48,9 +48,8 @@ func (u *ImpactUsecase) GetMonthlySummary(userID uuid.UUID, month, year int) (dt
 		return dto.ImpactSummaryResponse{}, err
 	}
 
-	monthName := fmt.Sprintf("%s %d", indonesianMonths[month], year)
+	monthName := fmt.Sprintf("%s %d", englishMonths[month], year)
 
-	// Calculate percentages
 	var cookingPct, donationPct float64
 	totalMoney := summary.CookingMoney + summary.DonationMoney
 	if totalMoney > 0 {
@@ -58,7 +57,6 @@ func (u *ImpactUsecase) GetMonthlySummary(userID uuid.UUID, month, year int) (dt
 		donationPct = math.Round((summary.DonationMoney/totalMoney)*1000) / 10
 	}
 
-	// Fetch recent activities (top 3)
 	recentDB, _, _ := u.impactRepo.FindAllByUserID(userID, 1, 3)
 	var recentResp []dto.ImpactActivityResponse
 	for _, act := range recentDB {
@@ -152,17 +150,17 @@ func formatActivityTime(t time.Time) string {
 	diff := now.Sub(t)
 
 	if diff < time.Minute {
-		return "Baru saja"
+		return "Just now"
 	}
 	if diff < time.Hour {
-		return fmt.Sprintf("%d menit lalu", int(diff.Minutes()))
+		return fmt.Sprintf("%d minutes ago", int(diff.Minutes()))
 	}
 	if diff < 24*time.Hour && t.Day() == now.Day() {
-		return fmt.Sprintf("Hari ini, %s WIB", t.Format("15:04"))
+		return fmt.Sprintf("Today, %s", t.Format("15:04"))
 	}
 	if diff < 48*time.Hour && t.Day() == now.Day()-1 {
-		return fmt.Sprintf("Kemarin, %s WIB", t.Format("15:04"))
+		return fmt.Sprintf("Yesterday, %s", t.Format("15:04"))
 	}
 
-	return fmt.Sprintf("%d hari lalu, %s WIB", int(diff.Hours()/24), t.Format("15:04"))
+	return fmt.Sprintf("%d days ago, %s", int(diff.Hours()/24), t.Format("15:04"))
 }

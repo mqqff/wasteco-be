@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WasteCo Backend API",
-    "description": "API Backend WasteCo untuk Aplikasi Pengelolaan & Pencegahan Food Waste Rumah Tangga (PAPB Kelompok 1 TIF A 2026, Universitas Brawijaya).",
+    "description": "RESTful API backend for WasteCo - Household Food Waste Prevention & Management System.",
     "version": "1.0.0"
   },
   "servers": [
@@ -17,13 +17,13 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-api-key",
-        "description": "API Key wajib untuk semua endpoint"
+        "description": "Required API key for public and protected routes"
       },
       "BearerAuth": {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "JWT Bearer Token dari login/register"
+        "description": "JWT Bearer token from login/registration"
       }
     }
   },
@@ -38,7 +38,8 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Register Akun Baru",
+        "summary": "Register New User Account",
+        "description": "Create a new user account with email, password, and area information.",
         "requestBody": {
           "required": true,
           "content": {
@@ -58,7 +59,7 @@
         },
         "responses": {
           "201": {
-            "description": "Berhasil mendaftar dan menghasilkan JWT token"
+            "description": "User account created successfully and JWT token returned"
           }
         }
       }
@@ -68,7 +69,8 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Login Email & Password",
+        "summary": "User Login",
+        "description": "Authenticate user with email and password to receive a JWT access token.",
         "requestBody": {
           "required": true,
           "content": {
@@ -82,7 +84,7 @@
         },
         "responses": {
           "200": {
-            "description": "Berhasil login"
+            "description": "Login successful"
           }
         }
       }
@@ -92,7 +94,8 @@
         "tags": [
           "User Profile"
         ],
-        "summary": "Get Profil & Ringkasan Kontribusi",
+        "summary": "Get Profile & Contribution Summary",
+        "description": "Retrieve current authenticated user profile along with aggregated food portions and money saved.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -103,7 +106,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Profil user beserta total porsi & rupiah dihemat"
+            "description": "User profile with contribution statistics"
           }
         }
       },
@@ -111,7 +114,8 @@
         "tags": [
           "User Profile"
         ],
-        "summary": "Update Profil & Area Komunitas",
+        "summary": "Update User Profile",
+        "description": "Update user profile details such as name, phone number, neighborhood area, coordinates, and donation sharing radius.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -137,7 +141,7 @@
         },
         "responses": {
           "200": {
-            "description": "Profil berhasil diperbarui"
+            "description": "Profile updated successfully"
           }
         }
       }
@@ -147,7 +151,8 @@
         "tags": [
           "Pantry"
         ],
-        "summary": "Daftar Bahan Dapur Aktif",
+        "summary": "List Active Pantry Ingredients",
+        "description": "Retrieve active kitchen inventory items for the authenticated user.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -163,7 +168,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Filter kategori (Bahan Pokok, Sayuran, dll)"
+            "description": "Filter by ingredient category"
           },
           {
             "name": "status",
@@ -171,12 +176,12 @@
             "schema": {
               "type": "string"
             },
-            "description": "Filter status (fresh, near_expiry)"
+            "description": "Filter by status: fresh, near_expiry"
           }
         ],
         "responses": {
           "200": {
-            "description": "Daftar bahan inventaris dapur"
+            "description": "List of active pantry ingredients"
           }
         }
       },
@@ -184,7 +189,8 @@
         "tags": [
           "Pantry"
         ],
-        "summary": "Tambah Bahan Dapur Baru",
+        "summary": "Add Pantry Ingredient",
+        "description": "Add a new ingredient item to the user's pantry inventory.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -198,12 +204,12 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Wortel Segar",
+                "name": "Fresh Carrot",
                 "quantity": 250,
                 "unit": "gram",
-                "category": "Sayuran",
-                "storage_location": "Kulkas bagian bawah",
-                "expiry_date": "2026-11-15T00:00:00Z",
+                "category": "Vegetables",
+                "storage_location": "Crisper drawer",
+                "expiry_date": "2026-11-15",
                 "estimated_price": 5000
               }
             }
@@ -211,7 +217,7 @@
         },
         "responses": {
           "201": {
-            "description": "Bahan berhasil disimpan"
+            "description": "Pantry ingredient created successfully"
           }
         }
       }
@@ -221,7 +227,8 @@
         "tags": [
           "Pantry"
         ],
-        "summary": "Update Bahan Dapur",
+        "summary": "Update Pantry Ingredient",
+        "description": "Update details, quantity, status, or expiry date of an ingredient.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -245,12 +252,12 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Wortel Segar",
+                "name": "Fresh Carrot",
                 "quantity": 200,
                 "unit": "gram",
-                "category": "Sayuran",
-                "storage_location": "Kulkas bagian bawah",
-                "expiry_date": "2026-11-15T00:00:00Z",
+                "category": "Vegetables",
+                "storage_location": "Crisper drawer",
+                "expiry_date": "2026-11-15",
                 "status": "near_expiry",
                 "estimated_price": 4000
               }
@@ -259,7 +266,7 @@
         },
         "responses": {
           "200": {
-            "description": "Bahan berhasil diperbarui"
+            "description": "Pantry ingredient updated successfully"
           }
         }
       },
@@ -267,7 +274,8 @@
         "tags": [
           "Pantry"
         ],
-        "summary": "Hapus Bahan Dapur",
+        "summary": "Delete Pantry Ingredient",
+        "description": "Remove an ingredient from the user's pantry.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -288,7 +296,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Bahan berhasil dihapus"
+            "description": "Pantry ingredient deleted successfully"
           }
         }
       }
@@ -298,7 +306,8 @@
         "tags": [
           "Recipes & AI"
         ],
-        "summary": "Rekomendasi Resep Masakan Zero-Waste (Gemini AI)",
+        "summary": "Generate Zero-Waste Recipes (Gemini AI)",
+        "description": "Submit available ingredients to Gemini AI to generate customized zero-waste recipes ranked by match percentage.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -322,7 +331,7 @@
         },
         "responses": {
           "200": {
-            "description": "Daftar resep rekomendasi Gemini AI"
+            "description": "List of recommended recipes from Gemini AI"
           }
         }
       }
@@ -332,7 +341,8 @@
         "tags": [
           "Recipes & AI"
         ],
-        "summary": "Konfirmasi Selesai Masak & Deduksi Pantry Otomatis",
+        "summary": "Confirm Cooking & Auto-Deduct Pantry",
+        "description": "Confirm recipe completion, deduct used pantry quantities, and log saved portions and cost to impact analytics.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -346,12 +356,16 @@
           "content": {
             "application/json": {
               "example": {
-                "recipe_name": "Nasi Goreng Roti Kampung",
+                "recipe_name": "Vegetable Fried Rice",
                 "portions": 2,
+                "estimated_savings": 25000,
                 "used_ingredients": [
                   {
-                    "pantry_id": "fbc6bf3d-6155-4332-9e62-7ff1d2a36790",
-                    "quantity": 1
+                    "ingredient_id": "fbc6bf3d-6155-4332-9e62-7ff1d2a36790",
+                    "name": "White Rice",
+                    "quantity": 1,
+                    "unit": "portion",
+                    "estimated_price": 5000
                   }
                 ]
               }
@@ -360,7 +374,7 @@
         },
         "responses": {
           "201": {
-            "description": "Pantry terpotong dan dampak tercatat"
+            "description": "Pantry deducted and cooking impact recorded successfully"
           }
         }
       }
@@ -370,7 +384,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Eksplorasi Donasi Makanan Berlebih Terdekat (Haversine)",
+        "summary": "Explore Nearby Food Donations",
+        "description": "Explore active surplus food donations with real-time Haversine distance calculations and location filtering.",
         "parameters": [
           {
             "name": "lat",
@@ -378,7 +393,8 @@
             "schema": {
               "type": "number"
             },
-            "example": -7.9535
+            "example": -7.9535,
+            "description": "User latitude"
           },
           {
             "name": "long",
@@ -386,15 +402,17 @@
             "schema": {
               "type": "number"
             },
-            "example": 112.608
+            "example": 112.608,
+            "description": "User longitude"
           },
           {
-            "name": "radius_km",
+            "name": "radius",
             "in": "query",
             "schema": {
               "type": "number"
             },
-            "example": 5
+            "example": 5,
+            "description": "Search radius in km"
           },
           {
             "name": "category",
@@ -402,7 +420,8 @@
             "schema": {
               "type": "string"
             },
-            "example": "Bahan Pokok"
+            "example": "Vegetables",
+            "description": "Filter by category"
           },
           {
             "name": "search",
@@ -410,12 +429,13 @@
             "schema": {
               "type": "string"
             },
-            "example": "kentang"
+            "example": "carrot",
+            "description": "Search keyword"
           }
         ],
         "responses": {
           "200": {
-            "description": "Daftar donasi dengan format jarak real-time"
+            "description": "List of available donations with distance"
           }
         }
       },
@@ -423,7 +443,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Buat Donasi Makanan Baru (Multipart Upload)",
+        "summary": "Post Food Donation",
+        "description": "Post surplus food with photo uploads, condition notes, pickup deadline, meeting point, and WhatsApp contact.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -441,11 +462,11 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "example": "Wortel Segar Kebun"
+                    "example": "Fresh Garden Carrots"
                   },
                   "category": {
                     "type": "string",
-                    "example": "Sayuran"
+                    "example": "Vegetables"
                   },
                   "quantity": {
                     "type": "number",
@@ -457,11 +478,11 @@
                   },
                   "condition_note": {
                     "type": "string",
-                    "example": "Sudah dicuci bersih"
+                    "example": "Washed clean, crisp and fresh"
                   },
                   "storage_method": {
                     "type": "string",
-                    "example": "Chiller kulkas"
+                    "example": "Chiller in airtight container"
                   },
                   "pickup_deadline": {
                     "type": "string",
@@ -473,7 +494,7 @@
                   },
                   "meeting_point": {
                     "type": "string",
-                    "example": "Depan Alfamart MT Haryono"
+                    "example": "In front of Alfamart MT Haryono"
                   },
                   "latitude": {
                     "type": "number",
@@ -509,7 +530,7 @@
         },
         "responses": {
           "201": {
-            "description": "Donasi berhasil dipublikasikan"
+            "description": "Food donation published successfully"
           }
         }
       }
@@ -519,7 +540,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Daftar Donasi Milik Saya (Tab Active & History)",
+        "summary": "Get My Posted Donations",
+        "description": "Retrieve user's posted donations split into active and history tabs.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -528,23 +550,9 @@
             "BearerAuth": []
           }
         ],
-        "parameters": [
-          {
-            "name": "tab",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "active",
-                "history"
-              ]
-            },
-            "example": "active"
-          }
-        ],
         "responses": {
           "200": {
-            "description": "Daftar donasi milik pengguna"
+            "description": "User's donations list"
           }
         }
       }
@@ -554,7 +562,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Detail Donasi & Kontak Donor WhatsApp",
+        "summary": "Get Donation Detail & Contact",
+        "description": "Retrieve complete donation details, donor information, and WhatsApp coordination contact.",
         "parameters": [
           {
             "name": "id",
@@ -563,11 +572,27 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            },
+            "description": "Optional user latitude for distance"
+          },
+          {
+            "name": "long",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            },
+            "description": "Optional user longitude for distance"
           }
         ],
         "responses": {
           "200": {
-            "description": "Detail donasi dan informasi donor"
+            "description": "Donation detail and donor info"
           }
         }
       },
@@ -575,7 +600,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Batalkan Donasi",
+        "summary": "Cancel Donation",
+        "description": "Cancel a posted food donation.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -596,7 +622,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Donasi berhasil dibatalkan"
+            "description": "Donation cancelled successfully"
           }
         }
       }
@@ -606,7 +632,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Ubah Status Donasi",
+        "summary": "Update Donation Status",
+        "description": "Update the status of a donation (e.g. in_progress, available, completed, cancelled).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -637,7 +664,7 @@
         },
         "responses": {
           "200": {
-            "description": "Status donasi diperbarui"
+            "description": "Donation status updated"
           }
         }
       }
@@ -647,7 +674,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Konfirmasi Serah Terima Donasi (Tercatat ke Impact)",
+        "summary": "Confirm Donation Handover",
+        "description": "Confirm physical handover of donation to neighbor, marking donation completed and recording impact activity.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -668,7 +696,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Donasi selesai dan dampak tersimpan"
+            "description": "Donation completed and food waste impact logged"
           }
         }
       }
@@ -678,7 +706,8 @@
         "tags": [
           "Impact & Analytics"
         ],
-        "summary": "Statistik Penghematan & Porsi Bulanan (Layar S15)",
+        "summary": "Monthly Savings & Portions Summary",
+        "description": "Get monthly aggregation of total food portions saved, estimated money saved, CO2 prevented, and home-cooking vs donation ratio.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -694,7 +723,8 @@
             "schema": {
               "type": "integer"
             },
-            "example": 11
+            "example": 11,
+            "description": "Month (1-12)"
           },
           {
             "name": "year",
@@ -702,12 +732,13 @@
             "schema": {
               "type": "integer"
             },
-            "example": 2026
+            "example": 2026,
+            "description": "Year (e.g. 2026)"
           }
         ],
         "responses": {
           "200": {
-            "description": "Ringkasan total porsi, rupiah dihemat, dan rasio masak vs donasi"
+            "description": "Monthly impact summary and composition ratio"
           }
         }
       }
@@ -717,7 +748,8 @@
         "tags": [
           "Impact & Analytics"
         ],
-        "summary": "Riwayat Penyelamatan Makanan",
+        "summary": "Food Waste Reduction History",
+        "description": "Get paginated activity history of cooked recipes and completed food donations.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -733,7 +765,8 @@
             "schema": {
               "type": "integer"
             },
-            "example": 1
+            "example": 1,
+            "description": "Page number"
           },
           {
             "name": "limit",
@@ -741,12 +774,13 @@
             "schema": {
               "type": "integer"
             },
-            "example": 10
+            "example": 10,
+            "description": "Items per page"
           }
         ],
         "responses": {
           "200": {
-            "description": "Daftar histori aktivitas masak dan donasi"
+            "description": "Paginated impact activity history"
           }
         }
       }
@@ -756,7 +790,8 @@
         "tags": [
           "Impact & Analytics"
         ],
-        "summary": "Detail Rincian Penyelamatan Makanan (Layar S16)",
+        "summary": "Get Impact Activity Detail",
+        "description": "Retrieve detailed breakdown of ingredients, market prices, and CO2e emissions prevented for a specific activity.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -777,7 +812,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Rincian bahan yang diselamatkan & estimasi CO2"
+            "description": "Impact activity details and breakdown"
           }
         }
       }

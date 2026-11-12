@@ -21,7 +21,6 @@ func main() {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 
-	// 1. Seed Users
 	affanID := uuid.New()
 	budiID := uuid.New()
 	sitiID := uuid.New()
@@ -77,7 +76,6 @@ func main() {
 		}
 	}
 
-	// 2. Seed Pantry for Affan
 	now := time.Now()
 	nearExpiry := now.AddDate(0, 0, 2)
 	freshDate := now.AddDate(0, 0, 7)
@@ -141,7 +139,6 @@ func main() {
 		}
 	}
 
-	// 3. Seed Donations in Dinoyo area
 	today18 := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, time.Local)
 	tomorrow12 := today18.Add(24 * time.Hour)
 
@@ -196,7 +193,6 @@ func main() {
 		}
 	}
 
-	// 4. Seed Impact Activities for Affan (Matches Figma S15/S16)
 	breakdown1, _ := sonic.Marshal([]map[string]interface{}{
 		{"name": "Nasi Putih", "quantity": 2, "unit": "porsi", "estimated_price": 5000},
 		{"name": "Telur Ayam", "quantity": 2, "unit": "butir", "estimated_price": 4000},

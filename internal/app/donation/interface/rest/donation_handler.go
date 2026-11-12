@@ -237,7 +237,7 @@ func (h *DonationHandler) ConfirmHandedOver(c fiber.Ctx) error {
 		"payload": fiber.Map{
 			"confirmed": true,
 			"donation":  res,
-			"message":   "Donasi berhasil diserahkan dan dampak penyelamatan makanan telah dicatat!",
+			"message":   "Donation successfully handed over and impact recorded!",
 		},
 	})
 }

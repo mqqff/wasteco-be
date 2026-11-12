@@ -6,7 +6,7 @@ type CreatePantryItemRequest struct {
 	Unit            string  `json:"unit" validate:"required"`
 	Category        string  `json:"category" validate:"required"`
 	StorageLocation string  `json:"storage_location"`
-	ExpiryDate      *string `json:"expiry_date"` // YYYY-MM-DD
+	ExpiryDate      *string `json:"expiry_date"`
 	EstimatedPrice  float64 `json:"estimated_price"`
 }
 

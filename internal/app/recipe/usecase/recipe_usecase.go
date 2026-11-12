@@ -51,7 +51,6 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 			}
 		}
 	} else if len(req.CustomIngredients) == 0 {
-		// Take all available pantry ingredients
 		items, err := u.pantryRepo.FindAllByUserID(userID, "")
 		if err == nil {
 			for _, item := range items {
@@ -109,7 +108,6 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 		totalSavings = calculatedSavings
 	}
 
-	// 1 portion of food waste prevented ~ 0.21 kg CO2e
 	co2Prevented := float64(req.Portions) * 0.21
 
 	breakdownJSON, _ := sonic.Marshal(req.UsedIngredients)
@@ -137,6 +135,6 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 		PortionsSaved:  req.Portions,
 		MoneySaved:     totalSavings,
 		CO2PreventedKg: co2Prevented,
-		Message:        fmt.Sprintf("Hebat! %d porsi makanan dan Rp%.0f berhasil diselamatkan dari potensi terbuang.", req.Portions, totalSavings),
+		Message:        fmt.Sprintf("Great job! %d food portions and Rp%.0f successfully prevented from being wasted.", req.Portions, totalSavings),
 	}, nil
 }

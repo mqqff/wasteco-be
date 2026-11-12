@@ -47,7 +47,6 @@ func NewDonationUsecase(d donationRepo.DonationRepoItf, i impactRepo.ImpactRepoI
 func (u *DonationUsecase) CreateDonation(userID uuid.UUID, req dto.CreateDonationRequest, files []*multipart.FileHeader) (dto.DonationResponse, error) {
 	var photoURLs []string
 
-	// Upload photos (max 3)
 	for i, fileHeader := range files {
 		if i >= 3 {
 			break
@@ -95,7 +94,6 @@ func (u *DonationUsecase) CreateDonation(userID uuid.UUID, req dto.CreateDonatio
 		if err == nil {
 			pickupDeadline = &parsed
 		} else {
-			// fallback attempt
 			parsed2, err2 := time.Parse("2006-01-02 15:04:05", req.PickupDeadline)
 			if err2 == nil {
 				pickupDeadline = &parsed2
@@ -161,7 +159,6 @@ func (u *DonationUsecase) GetAvailableDonations(category, search string, userLat
 		results = append(results, resp)
 	}
 
-	// Sort by distance if user coords provided
 	if userLat != 0 && userLong != 0 {
 		sort.Slice(results, func(i, j int) bool {
 			if results[i].DistanceKM == nil {

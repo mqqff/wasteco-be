@@ -98,7 +98,6 @@ func (r *ImpactRepo) GetMonthlySummary(userID uuid.UUID, month, year int) (Month
 	}
 
 	startDate := fmt.Sprintf("%04d-%02d-01 00:00:00", year, month)
-	// next month start
 	nextYear := year
 	nextMonth := month + 1
 	if nextMonth > 12 {

@@ -39,7 +39,7 @@ func (r *DonationRepo) FindAllAvailable(category, search string) ([]entity.Donat
 	var donations []entity.Donation
 	query := r.db.Preload("User").Where("status = ?", "available")
 
-	if category != "" && category != "Semua" && category != "Semua Kategori" {
+	if category != "" && category != "All" && category != "all" && category != "All Categories" && category != "Semua" && category != "Semua Kategori" {
 		query = query.Where("category = ?", category)
 	}
 

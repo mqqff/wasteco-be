@@ -38,7 +38,7 @@ func (r *PantryRepo) FindAllByUserID(userID uuid.UUID, category string) ([]entit
 	var items []entity.PantryIngredient
 	query := r.db.Where("user_id = ? AND status IN ('fresh', 'near_expiry')", userID)
 
-	if category != "" && category != "Semua" {
+	if category != "" && category != "All" && category != "all" && category != "Semua" {
 		query = query.Where("category = ?", category)
 	}
 
