@@ -24,4 +24,5 @@ go.work
 .env
 data/logs/
 tmp/
+bin/
 .idea/

@@ -92,5 +92,5 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	userUsecase := UserUsecase.NewUserUsecase(userRepo)
 
 	AuthHandler.NewAuthHandler(v1, authUsecase, validator)
-	UserHandler.NewUserHandler(v1, middleware, userUsecase)
+	UserHandler.NewUserHandler(v1, middleware, userUsecase, validator)
 }
