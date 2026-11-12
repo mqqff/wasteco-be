@@ -24,11 +24,6 @@ type Env struct {
 	JWTSecretKey   string        `mapstructure:"JWT_SECRET_KEY"`
 	JWTExpiredTime time.Duration `mapstructure:"JWT_EXPIRED_TIME"`
 
-	OAuthState         string `mapstructure:"OAUTH_STATE"`
-	GoogleClientID     string `mapstructure:"GOOGLE_CLIENT_ID"`
-	GoogleClientSecret string `mapstructure:"GOOGLE_CLIENT_SECRET"`
-	GoogleRedirectURL  string `mapstructure:"GOOGLE_REDIRECT_URL"`
-
 	SupabaseURL    string `mapstructure:"SUPABASE_URL"`
 	SupabaseSecret string `mapstructure:"SUPABASE_SECRET"`
 	SupabaseBucket string `mapstructure:"SUPABASE_BUCKET"`

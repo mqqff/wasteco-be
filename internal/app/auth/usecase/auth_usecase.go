@@ -7,77 +7,25 @@ import (
 	"github.com/mqqff/wasteco-be/internal/app/user/repository"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
-	"github.com/mqqff/wasteco-be/internal/domain/env"
 	"github.com/mqqff/wasteco-be/pkg/jwt"
-	"github.com/mqqff/wasteco-be/pkg/oauth"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthUsecaseItf interface {
-	HandleRedirect(state string) (string, error)
-	HandleCallback(data dto.GoogleCallbackRequest) (string, error)
 	Register(req dto.RegisterRequest) (dto.AuthResponse, error)
 	Login(req dto.LoginRequest) (dto.AuthResponse, error)
 }
 
 type AuthUsecase struct {
 	userRepo repository.UserRepoItf
-	oauth    oauth.OAuthItf
 	jwt      jwt.JWTIf
 }
 
-func NewAuthUsecase(r repository.UserRepoItf, o oauth.OAuthItf, j jwt.JWTIf) AuthUsecaseItf {
+func NewAuthUsecase(r repository.UserRepoItf, j jwt.JWTIf) AuthUsecaseItf {
 	return &AuthUsecase{
 		userRepo: r,
-		oauth:    o,
 		jwt:      j,
 	}
-}
-
-func (u *AuthUsecase) HandleRedirect(state string) (string, error) {
-	return u.oauth.GenerateAuthLink(state), nil
-}
-
-func (u *AuthUsecase) HandleCallback(data dto.GoogleCallbackRequest) (string, error) {
-	if data.State != env.AppEnv.OAuthState {
-		return "", errors.New("invalid state")
-	}
-
-	token, err := u.oauth.ExchangeToken(data.Code)
-	if err != nil {
-		return "", err
-	}
-
-	userInfo, err := u.oauth.GetUserInfo(token)
-	if err != nil {
-		return "", err
-	}
-
-	user, err := u.userRepo.Show(dto.UserParam{Email: userInfo.Email})
-	if err != nil {
-		return "", err
-	}
-
-	if user.ID == uuid.Nil {
-		user = entity.User{
-			ID:              uuid.New(),
-			Email:           userInfo.Email,
-			Name:            userInfo.Name,
-			SharingRadiusKM: 2,
-		}
-
-		err := u.userRepo.Create(&user)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	jwtToken, err := u.jwt.GenerateToken(user.ID)
-	if err != nil {
-		return "", err
-	}
-
-	return jwtToken, nil
 }
 
 func (u *AuthUsecase) Register(req dto.RegisterRequest) (dto.AuthResponse, error) {
@@ -139,7 +87,7 @@ func (u *AuthUsecase) Login(req dto.LoginRequest) (dto.AuthResponse, error) {
 	}
 
 	if user.PasswordHash == "" {
-		return dto.AuthResponse{}, errors.New("this account was registered via Google, please login with Google")
+		return dto.AuthResponse{}, errors.New("account password not configured")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))

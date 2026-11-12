@@ -29,7 +29,6 @@ import (
 	"github.com/mqqff/wasteco-be/internal/middlewares"
 	"github.com/mqqff/wasteco-be/pkg/jwt"
 	"github.com/mqqff/wasteco-be/pkg/log"
-	"github.com/mqqff/wasteco-be/pkg/oauth"
 	"gorm.io/gorm"
 	"time"
 )
@@ -94,7 +93,6 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	v1 := api.Group("/v1")
 
 	jwt := jwt.JWT
-	oauth := oauth.OAuth
 	validator := validator.New()
 	geminiAI := gemini.Gemini
 	supabaseStorage := supabase.Supabase
@@ -106,7 +104,7 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	impactRepo := ImpactRepo.NewImpactRepo(db)
 	donationRepo := DonationRepo.NewDonationRepo(db)
 
-	authUsecase := AuthUsecase.NewAuthUsecase(userRepo, oauth, jwt)
+	authUsecase := AuthUsecase.NewAuthUsecase(userRepo, jwt)
 	userUsecase := UserUsecase.NewUserUsecase(userRepo)
 	pantryUsecase := PantryUsecase.NewPantryUsecase(pantryRepo)
 	recipeUsecase := RecipeUsecase.NewRecipeUsecase(pantryRepo, impactRepo, geminiAI)
