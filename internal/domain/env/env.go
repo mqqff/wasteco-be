@@ -37,9 +37,20 @@ var AppEnv = getEnv()
 func getEnv() *Env {
 	env := &Env{}
 	viper.SetConfigFile(".env")
+	viper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatal(log.LogInfo{"error": err.Error()}, "[Env][getEnv] failed to read env file")
+	_ = viper.ReadInConfig()
+
+	keys := []string{
+		"APP_NAME", "APP_HOST", "APP_PORT", "APP_ENV",
+		"API_KEY",
+		"DB_NAME", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASS",
+		"JWT_SECRET_KEY", "JWT_EXPIRED_TIME",
+		"SUPABASE_URL", "SUPABASE_SECRET", "SUPABASE_BUCKET",
+		"GEMINI_API_KEY", "GEMINI_MODEL",
+	}
+	for _, key := range keys {
+		_ = viper.BindEnv(key)
 	}
 
 	if err := viper.Unmarshal(env); err != nil {

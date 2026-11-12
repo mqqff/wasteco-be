@@ -1,0 +1,16 @@
+.git
+.github
+.gitignore
+.air.toml
+.cursor
+.idea
+.serena
+.mcp.json
+bin/
+tmp/
+data/logs/
+docs/
+*.md
+*.pdf
+*.jpg
+*.png
