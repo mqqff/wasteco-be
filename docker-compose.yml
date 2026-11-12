@@ -23,6 +23,7 @@ services:
       - wasteco-network
 
   wasteco-api:
+    image: wasteco-be:latest
     build:
       context: .
       dockerfile: Dockerfile
