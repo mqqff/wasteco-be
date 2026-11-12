@@ -28,6 +28,13 @@ type Env struct {
 	GoogleClientID     string `mapstructure:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret string `mapstructure:"GOOGLE_CLIENT_SECRET"`
 	GoogleRedirectURL  string `mapstructure:"GOOGLE_REDIRECT_URL"`
+
+	SupabaseURL    string `mapstructure:"SUPABASE_URL"`
+	SupabaseSecret string `mapstructure:"SUPABASE_SECRET"`
+	SupabaseBucket string `mapstructure:"SUPABASE_BUCKET"`
+
+	GeminiAPIKey string `mapstructure:"GEMINI_API_KEY"`
+	GeminiModel  string `mapstructure:"GEMINI_MODEL"`
 }
 
 var AppEnv = getEnv()

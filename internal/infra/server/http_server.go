@@ -9,13 +9,17 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/helmet"
 	AuthHandler "github.com/mqqff/wasteco-be/internal/app/auth/interface/rest"
 	AuthUsecase "github.com/mqqff/wasteco-be/internal/app/auth/usecase"
+	ImpactRepo "github.com/mqqff/wasteco-be/internal/app/impact/repository"
 	PantryHandler "github.com/mqqff/wasteco-be/internal/app/pantry/interface/rest"
 	PantryRepo "github.com/mqqff/wasteco-be/internal/app/pantry/repository"
 	PantryUsecase "github.com/mqqff/wasteco-be/internal/app/pantry/usecase"
+	RecipeHandler "github.com/mqqff/wasteco-be/internal/app/recipe/interface/rest"
+	RecipeUsecase "github.com/mqqff/wasteco-be/internal/app/recipe/usecase"
 	UserHandler "github.com/mqqff/wasteco-be/internal/app/user/interface/rest"
 	UserRepo "github.com/mqqff/wasteco-be/internal/app/user/repository"
 	UserUsecase "github.com/mqqff/wasteco-be/internal/app/user/usecase"
 	"github.com/mqqff/wasteco-be/internal/domain/env"
+	"github.com/mqqff/wasteco-be/internal/infra/gemini"
 	"github.com/mqqff/wasteco-be/internal/middlewares"
 	"github.com/mqqff/wasteco-be/pkg/jwt"
 	"github.com/mqqff/wasteco-be/pkg/log"
@@ -86,17 +90,21 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	jwt := jwt.JWT
 	oauth := oauth.OAuth
 	validator := validator.New()
+	geminiAI := gemini.Gemini
 
 	middleware := middlewares.NewMiddleware(jwt)
 
 	userRepo := UserRepo.NewUserRepo(db)
 	pantryRepo := PantryRepo.NewPantryRepo(db)
+	impactRepo := ImpactRepo.NewImpactRepo(db)
 
 	authUsecase := AuthUsecase.NewAuthUsecase(userRepo, oauth, jwt)
 	userUsecase := UserUsecase.NewUserUsecase(userRepo)
 	pantryUsecase := PantryUsecase.NewPantryUsecase(pantryRepo)
+	recipeUsecase := RecipeUsecase.NewRecipeUsecase(pantryRepo, impactRepo, geminiAI)
 
 	AuthHandler.NewAuthHandler(v1, authUsecase, validator)
 	UserHandler.NewUserHandler(v1, middleware, userUsecase, validator)
 	PantryHandler.NewPantryHandler(v1, middleware, pantryUsecase, validator)
+	RecipeHandler.NewRecipeHandler(v1, middleware, recipeUsecase, validator)
 }
