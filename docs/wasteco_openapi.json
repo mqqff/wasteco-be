@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WasteCo Backend API",
-    "description": "RESTful API backend for WasteCo - Household Food Waste Prevention & Management System.",
+    "description": "RESTful API backend for WasteCo - Household Food Waste Prevention & Management System (PAPB Kelompok 1 TIF A 2026, Universitas Brawijaya). Every endpoint maps to specific Figma UI/UX prototype screens.",
     "version": "1.0.0"
   },
   "servers": [
@@ -17,13 +17,13 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-api-key",
-        "description": "Required API key for public and protected routes"
+        "description": "Mandatory API key for all public and private requests (verified via SHA-256 in RequireAPIKey middleware)."
       },
       "BearerAuth": {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "JWT Bearer token from login/registration"
+        "description": "JWT Bearer authentication token obtained from Login or Registration."
       }
     }
   },
@@ -39,7 +39,7 @@
           "Auth"
         ],
         "summary": "Register New User Account",
-        "description": "Create a new user account with email, password, and area information.",
+        "description": "Create a new user account with name, email, bcrypt-hashed password, neighborhood area, and WhatsApp phone number.\n\n**Figma Screen Reference**: Screen S03 (Daftar WasteCo / Registration Screen).",
         "requestBody": {
           "required": true,
           "content": {
@@ -59,7 +59,7 @@
         },
         "responses": {
           "201": {
-            "description": "User account created successfully and JWT token returned"
+            "description": "User account created successfully and JWT access token generated"
           }
         }
       }
@@ -70,7 +70,7 @@
           "Auth"
         ],
         "summary": "User Login",
-        "description": "Authenticate user with email and password to receive a JWT access token.",
+        "description": "Authenticate an existing user with email and password, returning JWT access token and user profile with cumulative impact stats.\n\n**Figma Screen Reference**: Screen S02 (Masuk WasteCo / Login Screen).",
         "requestBody": {
           "required": true,
           "content": {
@@ -84,7 +84,7 @@
         },
         "responses": {
           "200": {
-            "description": "Login successful"
+            "description": "Authentication successful, returns JWT token and profile"
           }
         }
       }
@@ -94,8 +94,8 @@
         "tags": [
           "User Profile"
         ],
-        "summary": "Get Profile & Contribution Summary",
-        "description": "Retrieve current authenticated user profile along with aggregated food portions and money saved.",
+        "summary": "Get Profile & Cumulative Contribution Stats",
+        "description": "Retrieve current authenticated user's profile details, default neighborhood location coordinates, and overall cumulative contribution metrics (total portions saved & total money saved).\n\n**Figma Screen Reference**: Screen S04 (Beranda WasteCo / Header Section) & Screen S17 (Profil / Profile Overview Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -106,7 +106,7 @@
         ],
         "responses": {
           "200": {
-            "description": "User profile with contribution statistics"
+            "description": "Returns profile details and cumulative savings"
           }
         }
       },
@@ -114,8 +114,8 @@
         "tags": [
           "User Profile"
         ],
-        "summary": "Update User Profile",
-        "description": "Update user profile details such as name, phone number, neighborhood area, coordinates, and donation sharing radius.",
+        "summary": "Update Profile & Neighborhood Settings",
+        "description": "Update user profile information such as display name, WhatsApp coordination phone number, neighborhood area, GPS coordinates, and donation sharing radius in km.\n\n**Figma Screen Reference**: Screen S17 (Profil & Pengaturan Area / Edit Profile Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -152,7 +152,7 @@
           "Pantry"
         ],
         "summary": "List Active Pantry Ingredients",
-        "description": "Retrieve active kitchen inventory items for the authenticated user.",
+        "description": "Retrieve all active ingredients currently stored in the user's kitchen pantry (status 'fresh' or 'near_expiry'). Supports filtering by category and auto-calculates remaining days until expiry (days_until_expiry).\n\n**Figma Screen Reference**: Screen S04 (Beranda / Bahan Dapur Aktif) & Screen S05 (Pilih Bahan / Pantry Checklist Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -168,7 +168,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Filter by ingredient category"
+            "description": "Filter by category (Bahan Pokok, Sayuran, Lauk / Protein, Buah, Bumbu)"
           },
           {
             "name": "status",
@@ -181,7 +181,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of active pantry ingredients"
+            "description": "List of active pantry items with expiry calculations"
           }
         }
       },
@@ -190,7 +190,7 @@
           "Pantry"
         ],
         "summary": "Add Pantry Ingredient",
-        "description": "Add a new ingredient item to the user's pantry inventory.",
+        "description": "Add a new food item into the user's pantry inventory. Status is automatically classified as 'near_expiry' if expiry date is within 3 days.\n\n**Figma Screen Reference**: Screen S05 (Input Bahan Cepat / Quick Add Ingredient Modal).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -204,11 +204,11 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Fresh Carrot",
+                "name": "Wortel Segar",
                 "quantity": 250,
                 "unit": "gram",
-                "category": "Vegetables",
-                "storage_location": "Crisper drawer",
+                "category": "Sayuran",
+                "storage_location": "Kulkas bagian bawah",
                 "expiry_date": "2026-11-15",
                 "estimated_price": 5000
               }
@@ -228,7 +228,7 @@
           "Pantry"
         ],
         "summary": "Update Pantry Ingredient",
-        "description": "Update details, quantity, status, or expiry date of an ingredient.",
+        "description": "Update item quantity, storage location, expiry date, estimated price, or status (fresh, near_expiry, used, donated).\n\n**Figma Screen Reference**: Screen S04 / S05 (Edit Bahan Dapur / Edit Pantry Item Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -244,7 +244,8 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Pantry ingredient UUID"
           }
         ],
         "requestBody": {
@@ -252,11 +253,11 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Fresh Carrot",
+                "name": "Wortel Segar",
                 "quantity": 200,
                 "unit": "gram",
-                "category": "Vegetables",
-                "storage_location": "Crisper drawer",
+                "category": "Sayuran",
+                "storage_location": "Kulkas bagian bawah",
                 "expiry_date": "2026-11-15",
                 "status": "near_expiry",
                 "estimated_price": 4000
@@ -266,7 +267,7 @@
         },
         "responses": {
           "200": {
-            "description": "Pantry ingredient updated successfully"
+            "description": "Pantry item updated successfully"
           }
         }
       },
@@ -275,7 +276,7 @@
           "Pantry"
         ],
         "summary": "Delete Pantry Ingredient",
-        "description": "Remove an ingredient from the user's pantry.",
+        "description": "Permanently remove an ingredient from the user's pantry.\n\n**Figma Screen Reference**: Screen S05 (Hapus Bahan Dapur / Delete Pantry Item).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -291,12 +292,13 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Pantry ingredient UUID"
           }
         ],
         "responses": {
           "200": {
-            "description": "Pantry ingredient deleted successfully"
+            "description": "Pantry item deleted successfully"
           }
         }
       }
@@ -307,7 +309,7 @@
           "Recipes & AI"
         ],
         "summary": "Generate Zero-Waste Recipes (Gemini AI)",
-        "description": "Submit available ingredients to Gemini AI to generate customized zero-waste recipes ranked by match percentage.",
+        "description": "Send selected pantry ingredient IDs or custom ingredient names to the Gemini AI engine (gemini-flash-lite-latest). Gemini returns ranked Indonesian home-cooking recipes with match percentages, cooking time, portions, estimated savings (Rp), available ingredients, additional ingredients, step-by-step instructions, and smart kitchen tips.\n\n**Figma Screen Reference**: Screen S05 (Pilih Bahan & Cari Resep), Screen S06 (Rekomendasi Resep AI), & Screen S07 (Detail Resep Masak).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -324,6 +326,9 @@
                 "ingredient_ids": [
                   "258568e6-4c01-4968-bdaa-8db09af7c40b",
                   "fbc6bf3d-6155-4332-9e62-7ff1d2a36790"
+                ],
+                "custom_ingredients": [
+                  "Bawang Merah & Putih"
                 ]
               }
             }
@@ -331,7 +336,7 @@
         },
         "responses": {
           "200": {
-            "description": "List of recommended recipes from Gemini AI"
+            "description": "List of recommended zero-waste recipes ordered by highest match percentage"
           }
         }
       }
@@ -342,7 +347,7 @@
           "Recipes & AI"
         ],
         "summary": "Confirm Cooking & Auto-Deduct Pantry",
-        "description": "Confirm recipe completion, deduct used pantry quantities, and log saved portions and cost to impact analytics.",
+        "description": "Confirms recipe preparation completion. Automatically subtracts used ingredient quantities from the pantry (or updates status to 'used' if fully depleted), and automatically logs the food rescue activity into the impact ledger with portions saved, estimated cost savings, and CO2e prevented.\n\n**Figma Screen Reference**: Screen S08 (Konfirmasi Selesai Memasak / Cooking Confirmation Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -356,15 +361,15 @@
           "content": {
             "application/json": {
               "example": {
-                "recipe_name": "Vegetable Fried Rice",
+                "recipe_name": "Nasi Goreng Kampung Spesial Wortel Telur",
                 "portions": 2,
                 "estimated_savings": 25000,
                 "used_ingredients": [
                   {
                     "ingredient_id": "fbc6bf3d-6155-4332-9e62-7ff1d2a36790",
-                    "name": "White Rice",
+                    "name": "Nasi Putih",
                     "quantity": 1,
-                    "unit": "portion",
+                    "unit": "porsi",
                     "estimated_price": 5000
                   }
                 ]
@@ -374,7 +379,7 @@
         },
         "responses": {
           "201": {
-            "description": "Pantry deducted and cooking impact recorded successfully"
+            "description": "Pantry items deducted and cooking impact recorded successfully"
           }
         }
       }
@@ -384,8 +389,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Explore Nearby Food Donations",
-        "description": "Explore active surplus food donations with real-time Haversine distance calculations and location filtering.",
+        "summary": "Explore Nearby Food Donations (Haversine)",
+        "description": "Explore available surplus food donations posted by neighbors. Calculates real-time distance using the Haversine formula based on user coordinates (lat/long) and formats distance (e.g. '511 m', '1.8 km'). Supports filtering by category, radius in km, and search keywords.\n\n**Figma Screen Reference**: Screen S09 (Hub Berbagi / Sharing Hub List) & Screen S10 (Peta Berbagi / Geolocation Map Screen).",
         "parameters": [
           {
             "name": "lat",
@@ -394,7 +399,7 @@
               "type": "number"
             },
             "example": -7.9535,
-            "description": "User latitude"
+            "description": "User GPS latitude"
           },
           {
             "name": "long",
@@ -403,7 +408,7 @@
               "type": "number"
             },
             "example": 112.608,
-            "description": "User longitude"
+            "description": "User GPS longitude"
           },
           {
             "name": "radius",
@@ -412,7 +417,7 @@
               "type": "number"
             },
             "example": 5,
-            "description": "Search radius in km"
+            "description": "Search radius in km (default 5 km)"
           },
           {
             "name": "category",
@@ -420,7 +425,7 @@
             "schema": {
               "type": "string"
             },
-            "example": "Vegetables",
+            "example": "Sayuran",
             "description": "Filter by category"
           },
           {
@@ -429,13 +434,13 @@
             "schema": {
               "type": "string"
             },
-            "example": "carrot",
-            "description": "Search keyword"
+            "example": "kentang",
+            "description": "Search keyword for title or notes"
           }
         ],
         "responses": {
           "200": {
-            "description": "List of available donations with distance"
+            "description": "List of available food donations with distance and donor summary"
           }
         }
       },
@@ -443,8 +448,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Post Food Donation",
-        "description": "Post surplus food with photo uploads, condition notes, pickup deadline, meeting point, and WhatsApp contact.",
+        "summary": "Post Food Donation (Multipart)",
+        "description": "Publish a new surplus food donation for neighbors. Supports uploading up to 3 food photos to Supabase Storage, condition notes, storage method, pickup deadline, meeting point location, coordinates, and WhatsApp coordination number.\n\n**Figma Screen Reference**: Screen S12 (Buat Donasi / Create Food Donation Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -462,11 +467,11 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "example": "Fresh Garden Carrots"
+                    "example": "Wortel Segar Kebun"
                   },
                   "category": {
                     "type": "string",
-                    "example": "Vegetables"
+                    "example": "Sayuran"
                   },
                   "quantity": {
                     "type": "number",
@@ -478,11 +483,11 @@
                   },
                   "condition_note": {
                     "type": "string",
-                    "example": "Washed clean, crisp and fresh"
+                    "example": "Sudah dicuci bersih, kulit masih renyah dan tidak lembek."
                   },
                   "storage_method": {
                     "type": "string",
-                    "example": "Chiller in airtight container"
+                    "example": "Chiller kulkas wadah tertutup"
                   },
                   "pickup_deadline": {
                     "type": "string",
@@ -494,7 +499,7 @@
                   },
                   "meeting_point": {
                     "type": "string",
-                    "example": "In front of Alfamart MT Haryono"
+                    "example": "Depan minimarket Alfamart MT Haryono"
                   },
                   "latitude": {
                     "type": "number",
@@ -541,7 +546,7 @@
           "Donations"
         ],
         "summary": "Get My Posted Donations",
-        "description": "Retrieve user's posted donations split into active and history tabs.",
+        "description": "Retrieve food donations posted by the authenticated user, organized into active ('available', 'in_progress') and history ('completed', 'cancelled') tabs.\n\n**Figma Screen Reference**: Screen S13 (Donasi Saya / My Donations Management Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -552,7 +557,7 @@
         ],
         "responses": {
           "200": {
-            "description": "User's donations list"
+            "description": "List of user's active and past donations"
           }
         }
       }
@@ -562,8 +567,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Get Donation Detail & Contact",
-        "description": "Retrieve complete donation details, donor information, and WhatsApp coordination contact.",
+        "summary": "Get Donation Detail & Donor Contact",
+        "description": "Retrieve comprehensive details of a food donation, image photo URLs, food condition guide, pickup deadline, meeting point address, donor profile, and WhatsApp coordination number.\n\n**Figma Screen Reference**: Screen S11 (Detail Donasi) & Screen S11A (Dialog Lanjut ke WhatsApp).",
         "parameters": [
           {
             "name": "id",
@@ -571,7 +576,8 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Donation UUID"
           },
           {
             "name": "lat",
@@ -592,7 +598,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Donation detail and donor info"
+            "description": "Detailed donation information and donor contact"
           }
         }
       },
@@ -601,7 +607,7 @@
           "Donations"
         ],
         "summary": "Cancel Donation",
-        "description": "Cancel a posted food donation.",
+        "description": "Cancel an active food donation post (updates status to 'cancelled'). Only allowed by the donor owner.\n\n**Figma Screen Reference**: Screen S13 (Batalkan Donasi / Cancel Donation Action).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -617,7 +623,8 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Donation UUID"
           }
         ],
         "responses": {
@@ -633,7 +640,7 @@
           "Donations"
         ],
         "summary": "Update Donation Status",
-        "description": "Update the status of a donation (e.g. in_progress, available, completed, cancelled).",
+        "description": "Update the operational status of a donation post (e.g., mark as 'in_progress' when a neighbor contacts via WhatsApp).\n\n**Figma Screen Reference**: Screen S13 (Ubah Status Donasi / Update Status).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -649,7 +656,8 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Donation UUID"
           }
         ],
         "requestBody": {
@@ -674,8 +682,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Confirm Donation Handover",
-        "description": "Confirm physical handover of donation to neighbor, marking donation completed and recording impact activity.",
+        "summary": "Confirm Donation Handover (Record Impact)",
+        "description": "Confirm the physical handover of food to a recipient. Marks donation status as 'completed', removes it from public discovery, and automatically logs the food rescue activity into the impact ledger with portions saved, estimated food value (Rp), and CO2e prevented.\n\n**Figma Screen Reference**: Screen S13 & Screen S14 (Konfirmasi Berhasil Dibagikan / Handover Confirmation Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -691,12 +699,13 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Donation UUID"
           }
         ],
         "responses": {
           "200": {
-            "description": "Donation completed and food waste impact logged"
+            "description": "Donation marked completed and impact activity recorded successfully"
           }
         }
       }
@@ -707,7 +716,7 @@
           "Impact & Analytics"
         ],
         "summary": "Monthly Savings & Portions Summary",
-        "description": "Get monthly aggregation of total food portions saved, estimated money saved, CO2 prevented, and home-cooking vs donation ratio.",
+        "description": "Retrieve monthly aggregated metrics: total portions saved, total estimated money saved (Rp), total CO2e prevented (kg), composition breakdown (portions, savings, and percentage for Home-Cooked vs Donated-to-Neighbors), and top 3 recent activities.\n\n**Figma Screen Reference**: Screen S04 (Beranda / Dampak Bulan Ini), Screen S15 (Layar Dampak / Impact Dashboard Screen), & Screen S15B (Dampak Setelah Berbagi Toast).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -724,7 +733,7 @@
               "type": "integer"
             },
             "example": 11,
-            "description": "Month (1-12)"
+            "description": "Month number (1-12)"
           },
           {
             "name": "year",
@@ -738,7 +747,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Monthly impact summary and composition ratio"
+            "description": "Monthly impact summary and composition statistics"
           }
         }
       }
@@ -748,8 +757,8 @@
         "tags": [
           "Impact & Analytics"
         ],
-        "summary": "Food Waste Reduction History",
-        "description": "Get paginated activity history of cooked recipes and completed food donations.",
+        "summary": "Food Waste Reduction Activity Log",
+        "description": "Paginated activity history of all saved food actions (both cooked recipes and completed food donations) with relative formatting (e.g. 'Just now', '42 minutes ago', 'Today, 06:15').\n\n**Figma Screen Reference**: Screen S15 (Riwayat Aktivitas Penyelamatan Makanan / Impact History List Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -766,7 +775,7 @@
               "type": "integer"
             },
             "example": 1,
-            "description": "Page number"
+            "description": "Page number (defaults to 1)"
           },
           {
             "name": "limit",
@@ -775,7 +784,7 @@
               "type": "integer"
             },
             "example": 10,
-            "description": "Items per page"
+            "description": "Items per page (defaults to 10)"
           }
         ],
         "responses": {
@@ -790,8 +799,8 @@
         "tags": [
           "Impact & Analytics"
         ],
-        "summary": "Get Impact Activity Detail",
-        "description": "Retrieve detailed breakdown of ingredients, market prices, and CO2e emissions prevented for a specific activity.",
+        "summary": "Get Impact Activity Detail Breakdown",
+        "description": "Retrieve complete details for a specific food rescue activity: individual item breakdown, consumed quantities, estimated market prices, and CO2e emission reductions.\n\n**Figma Screen Reference**: Screen S16 (Detail Riwayat Dampak / Impact Breakdown Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -807,12 +816,13 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Impact activity UUID"
           }
         ],
         "responses": {
           "200": {
-            "description": "Impact activity details and breakdown"
+            "description": "Detailed impact activity with itemized breakdown"
           }
         }
       }
