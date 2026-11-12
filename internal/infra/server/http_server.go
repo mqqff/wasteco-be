@@ -9,6 +9,9 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/helmet"
 	AuthHandler "github.com/mqqff/wasteco-be/internal/app/auth/interface/rest"
 	AuthUsecase "github.com/mqqff/wasteco-be/internal/app/auth/usecase"
+	PantryHandler "github.com/mqqff/wasteco-be/internal/app/pantry/interface/rest"
+	PantryRepo "github.com/mqqff/wasteco-be/internal/app/pantry/repository"
+	PantryUsecase "github.com/mqqff/wasteco-be/internal/app/pantry/usecase"
 	UserHandler "github.com/mqqff/wasteco-be/internal/app/user/interface/rest"
 	UserRepo "github.com/mqqff/wasteco-be/internal/app/user/repository"
 	UserUsecase "github.com/mqqff/wasteco-be/internal/app/user/usecase"
@@ -87,10 +90,13 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	middleware := middlewares.NewMiddleware(jwt)
 
 	userRepo := UserRepo.NewUserRepo(db)
+	pantryRepo := PantryRepo.NewPantryRepo(db)
 
 	authUsecase := AuthUsecase.NewAuthUsecase(userRepo, oauth, jwt)
 	userUsecase := UserUsecase.NewUserUsecase(userRepo)
+	pantryUsecase := PantryUsecase.NewPantryUsecase(pantryRepo)
 
 	AuthHandler.NewAuthHandler(v1, authUsecase, validator)
 	UserHandler.NewUserHandler(v1, middleware, userUsecase, validator)
+	PantryHandler.NewPantryHandler(v1, middleware, pantryUsecase, validator)
 }
