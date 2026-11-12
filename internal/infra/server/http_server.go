@@ -12,7 +12,9 @@ import (
 	DonationHandler "github.com/mqqff/wasteco-be/internal/app/donation/interface/rest"
 	DonationRepo "github.com/mqqff/wasteco-be/internal/app/donation/repository"
 	DonationUsecase "github.com/mqqff/wasteco-be/internal/app/donation/usecase"
+	ImpactHandler "github.com/mqqff/wasteco-be/internal/app/impact/interface/rest"
 	ImpactRepo "github.com/mqqff/wasteco-be/internal/app/impact/repository"
+	ImpactUsecase "github.com/mqqff/wasteco-be/internal/app/impact/usecase"
 	PantryHandler "github.com/mqqff/wasteco-be/internal/app/pantry/interface/rest"
 	PantryRepo "github.com/mqqff/wasteco-be/internal/app/pantry/repository"
 	PantryUsecase "github.com/mqqff/wasteco-be/internal/app/pantry/usecase"
@@ -109,10 +111,12 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	pantryUsecase := PantryUsecase.NewPantryUsecase(pantryRepo)
 	recipeUsecase := RecipeUsecase.NewRecipeUsecase(pantryRepo, impactRepo, geminiAI)
 	donationUsecase := DonationUsecase.NewDonationUsecase(donationRepo, impactRepo, supabaseStorage)
+	impactUsecase := ImpactUsecase.NewImpactUsecase(impactRepo)
 
 	AuthHandler.NewAuthHandler(v1, authUsecase, validator)
 	UserHandler.NewUserHandler(v1, middleware, userUsecase, validator)
 	PantryHandler.NewPantryHandler(v1, middleware, pantryUsecase, validator)
 	RecipeHandler.NewRecipeHandler(v1, middleware, recipeUsecase, validator)
 	DonationHandler.NewDonationHandler(v1, middleware, donationUsecase, validator)
+	ImpactHandler.NewImpactHandler(v1, middleware, impactUsecase)
 }
