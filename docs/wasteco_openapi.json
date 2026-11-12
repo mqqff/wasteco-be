@@ -1,0 +1,786 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "WasteCo Backend API",
+    "description": "API Backend WasteCo untuk Aplikasi Pengelolaan & Pencegahan Food Waste Rumah Tangga (PAPB Kelompok 1 TIF A 2026, Universitas Brawijaya).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8000",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "API Key wajib untuk semua endpoint"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Bearer Token dari login/register"
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register Akun Baru",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Affan Maulana",
+                "email": "affan@wasteco.id",
+                "password": "password123",
+                "phone_number": "+6281234567890",
+                "area_name": "Dinoyo, Lowokwaru, Malang",
+                "latitude": -7.9528,
+                "longitude": 112.6074,
+                "sharing_radius_km": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Berhasil mendaftar dan menghasilkan JWT token"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login Email & Password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "affan@wasteco.id",
+                "password": "password123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil login"
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "Get Profil & Ringkasan Kontribusi",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profil user beserta total porsi & rupiah dihemat"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "Update Profil & Area Komunitas",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Affan Maulana",
+                "phone_number": "+6281234567890",
+                "area_name": "Dinoyo, Lowokwaru, Malang",
+                "latitude": -7.9528,
+                "longitude": 112.6074,
+                "sharing_radius_km": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profil berhasil diperbarui"
+          }
+        }
+      }
+    },
+    "/api/v1/pantry": {
+      "get": {
+        "tags": [
+          "Pantry"
+        ],
+        "summary": "Daftar Bahan Dapur Aktif",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter kategori (Bahan Pokok, Sayuran, dll)"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter status (fresh, near_expiry)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar bahan inventaris dapur"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pantry"
+        ],
+        "summary": "Tambah Bahan Dapur Baru",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Wortel Segar",
+                "quantity": 250,
+                "unit": "gram",
+                "category": "Sayuran",
+                "storage_location": "Kulkas bagian bawah",
+                "expiry_date": "2026-11-15T00:00:00Z",
+                "estimated_price": 5000
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bahan berhasil disimpan"
+          }
+        }
+      }
+    },
+    "/api/v1/pantry/{id}": {
+      "put": {
+        "tags": [
+          "Pantry"
+        ],
+        "summary": "Update Bahan Dapur",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Wortel Segar",
+                "quantity": 200,
+                "unit": "gram",
+                "category": "Sayuran",
+                "storage_location": "Kulkas bagian bawah",
+                "expiry_date": "2026-11-15T00:00:00Z",
+                "status": "near_expiry",
+                "estimated_price": 4000
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bahan berhasil diperbarui"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Pantry"
+        ],
+        "summary": "Hapus Bahan Dapur",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bahan berhasil dihapus"
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/generate": {
+      "post": {
+        "tags": [
+          "Recipes & AI"
+        ],
+        "summary": "Rekomendasi Resep Masakan Zero-Waste (Gemini AI)",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "ingredient_ids": [
+                  "258568e6-4c01-4968-bdaa-8db09af7c40b",
+                  "fbc6bf3d-6155-4332-9e62-7ff1d2a36790"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Daftar resep rekomendasi Gemini AI"
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/cook-confirm": {
+      "post": {
+        "tags": [
+          "Recipes & AI"
+        ],
+        "summary": "Konfirmasi Selesai Masak & Deduksi Pantry Otomatis",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "recipe_name": "Nasi Goreng Roti Kampung",
+                "portions": 2,
+                "used_ingredients": [
+                  {
+                    "pantry_id": "fbc6bf3d-6155-4332-9e62-7ff1d2a36790",
+                    "quantity": 1
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pantry terpotong dan dampak tercatat"
+          }
+        }
+      }
+    },
+    "/api/v1/donations": {
+      "get": {
+        "tags": [
+          "Donations"
+        ],
+        "summary": "Eksplorasi Donasi Makanan Berlebih Terdekat (Haversine)",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            },
+            "example": -7.9535
+          },
+          {
+            "name": "long",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            },
+            "example": 112.608
+          },
+          {
+            "name": "radius_km",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            },
+            "example": 5
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "Bahan Pokok"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "kentang"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar donasi dengan format jarak real-time"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Donations"
+        ],
+        "summary": "Buat Donasi Makanan Baru (Multipart Upload)",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Wortel Segar Kebun"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "Sayuran"
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "example": 500
+                  },
+                  "unit": {
+                    "type": "string",
+                    "example": "gram"
+                  },
+                  "condition_note": {
+                    "type": "string",
+                    "example": "Sudah dicuci bersih"
+                  },
+                  "storage_method": {
+                    "type": "string",
+                    "example": "Chiller kulkas"
+                  },
+                  "pickup_deadline": {
+                    "type": "string",
+                    "example": "2026-11-13T18:00:00Z"
+                  },
+                  "area_name": {
+                    "type": "string",
+                    "example": "Dinoyo, Malang"
+                  },
+                  "meeting_point": {
+                    "type": "string",
+                    "example": "Depan Alfamart MT Haryono"
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "example": -7.9535
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "example": 112.608
+                  },
+                  "whatsapp_number": {
+                    "type": "string",
+                    "example": "+6281358902144"
+                  },
+                  "estimated_price": {
+                    "type": "number",
+                    "example": 10000
+                  },
+                  "estimated_portions": {
+                    "type": "integer",
+                    "example": 2
+                  },
+                  "photos": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Donasi berhasil dipublikasikan"
+          }
+        }
+      }
+    },
+    "/api/v1/donations/my": {
+      "get": {
+        "tags": [
+          "Donations"
+        ],
+        "summary": "Daftar Donasi Milik Saya (Tab Active & History)",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tab",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "history"
+              ]
+            },
+            "example": "active"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar donasi milik pengguna"
+          }
+        }
+      }
+    },
+    "/api/v1/donations/{id}": {
+      "get": {
+        "tags": [
+          "Donations"
+        ],
+        "summary": "Detail Donasi & Kontak Donor WhatsApp",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detail donasi dan informasi donor"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Donations"
+        ],
+        "summary": "Batalkan Donasi",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Donasi berhasil dibatalkan"
+          }
+        }
+      }
+    },
+    "/api/v1/donations/{id}/status": {
+      "patch": {
+        "tags": [
+          "Donations"
+        ],
+        "summary": "Ubah Status Donasi",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "status": "in_progress"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status donasi diperbarui"
+          }
+        }
+      }
+    },
+    "/api/v1/donations/{id}/confirm-handed": {
+      "post": {
+        "tags": [
+          "Donations"
+        ],
+        "summary": "Konfirmasi Serah Terima Donasi (Tercatat ke Impact)",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Donasi selesai dan dampak tersimpan"
+          }
+        }
+      }
+    },
+    "/api/v1/impact/summary": {
+      "get": {
+        "tags": [
+          "Impact & Analytics"
+        ],
+        "summary": "Statistik Penghematan & Porsi Bulanan (Layar S15)",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 11
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 2026
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ringkasan total porsi, rupiah dihemat, dan rasio masak vs donasi"
+          }
+        }
+      }
+    },
+    "/api/v1/impact/history": {
+      "get": {
+        "tags": [
+          "Impact & Analytics"
+        ],
+        "summary": "Riwayat Penyelamatan Makanan",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar histori aktivitas masak dan donasi"
+          }
+        }
+      }
+    },
+    "/api/v1/impact/history/{id}": {
+      "get": {
+        "tags": [
+          "Impact & Analytics"
+        ],
+        "summary": "Detail Rincian Penyelamatan Makanan (Layar S16)",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rincian bahan yang diselamatkan & estimasi CO2"
+          }
+        }
+      }
+    }
+  }
+}
