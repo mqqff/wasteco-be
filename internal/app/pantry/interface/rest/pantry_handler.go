@@ -1,6 +1,9 @@
 package rest
 
 import (
+	"io"
+	"net/http"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -23,6 +26,8 @@ func NewPantryHandler(r fiber.Router, m middlewares.MiddlewareItf, u usecase.Pan
 	pantry := r.Group("/pantry", m.RequireAuth)
 	pantry.Get("/", handler.GetIngredients)
 	pantry.Post("/", handler.AddIngredient)
+	pantry.Post("/bulk", handler.AddIngredients)
+	pantry.Post("/scan", handler.ScanIngredients)
 	pantry.Put("/:id", handler.UpdateIngredient)
 	pantry.Delete("/:id", handler.DeleteIngredient)
 }
@@ -80,6 +85,104 @@ func (h *PantryHandler) AddIngredient(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"payload": fiber.Map{
 			"ingredient": res,
+		},
+	})
+}
+
+func (h *PantryHandler) AddIngredients(c fiber.Ctx) error {
+	userID := c.Locals("userID").(uuid.UUID)
+
+	req := dto.BulkCreatePantryItemRequest{}
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "bad_request",
+			"error":      err.Error(),
+			"message":    "Invalid request body",
+		})
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "validation_error",
+			"error":      err.Error(),
+			"message":    "Validation failed",
+		})
+	}
+
+	res, err := h.pantryUsecase.AddIngredients(userID, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error_code": "internal_server_error",
+			"error":      err.Error(),
+			"message":    "Failed to add pantry ingredients",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"payload": fiber.Map{
+			"ingredients": res,
+			"total":       len(res),
+		},
+	})
+}
+
+var allowedScanTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/webp": true,
+}
+
+func (h *PantryHandler) ScanIngredients(c fiber.Ctx) error {
+	fileHeader, err := c.FormFile("image")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "bad_request",
+			"error":      err.Error(),
+			"message":    "Please upload a photo in the 'image' field",
+		})
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "bad_request",
+			"error":      err.Error(),
+			"message":    "Failed to read uploaded photo",
+		})
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "bad_request",
+			"error":      err.Error(),
+			"message":    "Failed to read uploaded photo",
+		})
+	}
+
+	mimeType := http.DetectContentType(data)
+	if !allowedScanTypes[mimeType] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "validation_error",
+			"error":      "unsupported file type: " + mimeType,
+			"message":    "Photo must be JPEG, PNG, or WebP",
+		})
+	}
+
+	items, err := h.pantryUsecase.ScanIngredients(data, mimeType)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error_code": "internal_server_error",
+			"error":      err.Error(),
+			"message":    "Failed to detect ingredients from photo",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"payload": fiber.Map{
+			"ingredients": items,
+			"total":       len(items),
 		},
 	})
 }

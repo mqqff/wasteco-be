@@ -9,22 +9,27 @@ import (
 	"github.com/mqqff/wasteco-be/internal/app/pantry/repository"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
+	"github.com/mqqff/wasteco-be/internal/infra/gemini"
 )
 
 type PantryUsecaseItf interface {
 	GetIngredients(userID uuid.UUID, category string) ([]dto.PantryItemResponse, error)
 	AddIngredient(userID uuid.UUID, req dto.CreatePantryItemRequest) (dto.PantryItemResponse, error)
+	AddIngredients(userID uuid.UUID, req dto.BulkCreatePantryItemRequest) ([]dto.PantryItemResponse, error)
+	ScanIngredients(image []byte, mimeType string) ([]gemini.DetectedIngredient, error)
 	UpdateIngredient(userID uuid.UUID, id uuid.UUID, req dto.UpdatePantryItemRequest) (dto.PantryItemResponse, error)
 	DeleteIngredient(userID uuid.UUID, id uuid.UUID) error
 }
 
 type PantryUsecase struct {
 	pantryRepo repository.PantryRepoItf
+	gemini     gemini.GeminiItf
 }
 
-func NewPantryUsecase(r repository.PantryRepoItf) PantryUsecaseItf {
+func NewPantryUsecase(r repository.PantryRepoItf, g gemini.GeminiItf) PantryUsecaseItf {
 	return &PantryUsecase{
 		pantryRepo: r,
+		gemini:     g,
 	}
 }
 
@@ -46,6 +51,48 @@ func (u *PantryUsecase) GetIngredients(userID uuid.UUID, category string) ([]dto
 }
 
 func (u *PantryUsecase) AddIngredient(userID uuid.UUID, req dto.CreatePantryItemRequest) (dto.PantryItemResponse, error) {
+	item := newPantryItem(userID, req)
+
+	err := u.pantryRepo.Create(&item)
+	if err != nil {
+		return dto.PantryItemResponse{}, err
+	}
+
+	return u.mapToResponse(item, time.Now()), nil
+}
+
+func (u *PantryUsecase) AddIngredients(userID uuid.UUID, req dto.BulkCreatePantryItemRequest) ([]dto.PantryItemResponse, error) {
+	items := make([]entity.PantryIngredient, 0, len(req.Items))
+	for _, r := range req.Items {
+		items = append(items, newPantryItem(userID, r))
+	}
+
+	if err := u.pantryRepo.CreateMany(items); err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	responses := make([]dto.PantryItemResponse, 0, len(items))
+	for _, item := range items {
+		responses = append(responses, u.mapToResponse(item, now))
+	}
+
+	return responses, nil
+}
+
+func (u *PantryUsecase) ScanIngredients(image []byte, mimeType string) ([]gemini.DetectedIngredient, error) {
+	items, err := u.gemini.DetectIngredients(image, mimeType)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []gemini.DetectedIngredient{}
+	}
+
+	return items, nil
+}
+
+func newPantryItem(userID uuid.UUID, req dto.CreatePantryItemRequest) entity.PantryIngredient {
 	var expiryDate *time.Time
 	status := "fresh"
 
@@ -60,7 +107,7 @@ func (u *PantryUsecase) AddIngredient(userID uuid.UUID, req dto.CreatePantryItem
 		}
 	}
 
-	item := entity.PantryIngredient{
+	return entity.PantryIngredient{
 		ID:              uuid.New(),
 		UserID:          userID,
 		Name:            req.Name,
@@ -72,13 +119,6 @@ func (u *PantryUsecase) AddIngredient(userID uuid.UUID, req dto.CreatePantryItem
 		Status:          status,
 		EstimatedPrice:  req.EstimatedPrice,
 	}
-
-	err := u.pantryRepo.Create(&item)
-	if err != nil {
-		return dto.PantryItemResponse{}, err
-	}
-
-	return u.mapToResponse(item, time.Now()), nil
 }
 
 func (u *PantryUsecase) UpdateIngredient(userID uuid.UUID, id uuid.UUID, req dto.UpdatePantryItemRequest) (dto.PantryItemResponse, error) {

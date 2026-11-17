@@ -9,6 +9,7 @@ import (
 
 type PantryRepoItf interface {
 	Create(item *entity.PantryIngredient) error
+	CreateMany(items []entity.PantryIngredient) error
 	FindAllByUserID(userID uuid.UUID, category string) ([]entity.PantryIngredient, error)
 	FindByID(id uuid.UUID) (entity.PantryIngredient, error)
 	Update(item *entity.PantryIngredient) error
@@ -29,6 +30,17 @@ func (r *PantryRepo) Create(item *entity.PantryIngredient) error {
 		log.Error(log.LogInfo{
 			"error": err.Error(),
 		}, "[PantryRepo][Create] failed to create pantry ingredient")
+	}
+
+	return err
+}
+
+func (r *PantryRepo) CreateMany(items []entity.PantryIngredient) error {
+	err := r.db.Create(&items).Error
+	if err != nil {
+		log.Error(log.LogInfo{
+			"error": err.Error(),
+		}, "[PantryRepo][CreateMany] failed to create pantry ingredients")
 	}
 
 	return err

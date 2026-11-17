@@ -106,7 +106,7 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 
 	authUsecase := AuthUsecase.NewAuthUsecase(userRepo, jwt)
 	userUsecase := UserUsecase.NewUserUsecase(userRepo)
-	pantryUsecase := PantryUsecase.NewPantryUsecase(pantryRepo)
+	pantryUsecase := PantryUsecase.NewPantryUsecase(pantryRepo, geminiAI)
 	recipeUsecase := RecipeUsecase.NewRecipeUsecase(pantryRepo, impactRepo, geminiAI)
 	donationUsecase := DonationUsecase.NewDonationUsecase(donationRepo, impactRepo, supabaseStorage)
 	impactUsecase := ImpactUsecase.NewImpactUsecase(impactRepo)

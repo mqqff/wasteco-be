@@ -4,10 +4,14 @@ type CreatePantryItemRequest struct {
 	Name            string  `json:"name" validate:"required,min=2,max=100"`
 	Quantity        float64 `json:"quantity" validate:"required,gt=0"`
 	Unit            string  `json:"unit" validate:"required"`
-	Category        string  `json:"category" validate:"required"`
+	Category        string  `json:"category"`
 	StorageLocation string  `json:"storage_location"`
 	ExpiryDate      *string `json:"expiry_date"`
 	EstimatedPrice  float64 `json:"estimated_price"`
+}
+
+type BulkCreatePantryItemRequest struct {
+	Items []CreatePantryItemRequest `json:"items" validate:"required,min=1,max=50,dive"`
 }
 
 type UpdatePantryItemRequest struct {

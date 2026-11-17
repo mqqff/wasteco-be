@@ -39,8 +39,20 @@ type RecipeResponse struct {
 	Recipes []GeneratedRecipe `json:"recipes"`
 }
 
+type DetectedIngredient struct {
+	Name      string  `json:"name"`
+	Quantity  float64 `json:"quantity"`
+	Unit      string  `json:"unit"`
+	UnitPrice float64 `json:"unit_price"`
+}
+
+type detectResponse struct {
+	Ingredients []DetectedIngredient `json:"ingredients"`
+}
+
 type GeminiItf interface {
 	GenerateRecipes(ingredients []IngredientInput) ([]GeneratedRecipe, error)
+	DetectIngredients(image []byte, mimeType string) ([]DetectedIngredient, error)
 }
 
 type GeminiStruct struct {
@@ -176,4 +188,80 @@ Aturan penting:
 	}
 
 	return recipeResp.Recipes, nil
+}
+
+func (g *GeminiStruct) DetectIngredients(image []byte, mimeType string) ([]DetectedIngredient, error) {
+	if g.client == nil {
+		return nil, fmt.Errorf("gemini client not initialized")
+	}
+
+	prompt := `
+Kamu adalah asisten dapur yang mengenali bahan makanan dari foto untuk aplikasi pengelolaan bahan sisa di Indonesia.
+Identifikasi setiap bahan makanan mentah atau sisa yang terlihat di foto.
+
+Aturan penting:
+1. 'name' adalah nama bahan dalam Bahasa Indonesia (contoh: Bayam, Tomat, Bawang Putih, Nasi Putih).
+2. 'quantity' adalah perkiraan jumlah yang terlihat, 'unit' adalah satuan rumah tangga yang wajar (contoh: ikat, buah, siung, butir, porsi, gram, lembar).
+3. 'unit_price' adalah perkiraan harga pasar per SATU satuan dalam Rupiah (contoh: bayam 3000 per ikat, tomat 1000 per buah, wortel 30 per gram).
+4. Abaikan benda yang bukan bahan makanan. Jika tidak ada bahan makanan, kembalikan daftar kosong.
+`
+
+	temp := float32(0.1)
+	modelName := env.AppEnv.GeminiModel
+	if modelName == "" {
+		modelName = "gemini-flash-lite-latest"
+	}
+
+	contents := []*genai.Content{
+		genai.NewContentFromParts([]*genai.Part{
+			genai.NewPartFromBytes(image, mimeType),
+			genai.NewPartFromText(prompt),
+		}, genai.RoleUser),
+	}
+
+	result, err := g.client.Models.GenerateContent(
+		context.Background(),
+		modelName,
+		contents,
+		&genai.GenerateContentConfig{
+			ResponseMIMEType: "application/json",
+			ResponseSchema: &genai.Schema{
+				Type: genai.TypeObject,
+				Properties: map[string]*genai.Schema{
+					"ingredients": {
+						Type: genai.TypeArray,
+						Items: &genai.Schema{
+							Type: genai.TypeObject,
+							Properties: map[string]*genai.Schema{
+								"name":       {Type: genai.TypeString},
+								"quantity":   {Type: genai.TypeNumber},
+								"unit":       {Type: genai.TypeString},
+								"unit_price": {Type: genai.TypeNumber},
+							},
+							Required: []string{"name", "quantity", "unit", "unit_price"},
+						},
+					},
+				},
+				Required: []string{"ingredients"},
+			},
+			Temperature: &temp,
+		},
+	)
+	if err != nil {
+		log.Error(log.LogInfo{
+			"error": err.Error(),
+		}, "[Gemini][DetectIngredients] failed to generate content from gemini")
+		return nil, err
+	}
+
+	var resp detectResponse
+	if err := sonic.Unmarshal([]byte(result.Text()), &resp); err != nil {
+		log.Error(log.LogInfo{
+			"error": err.Error(),
+			"raw":   result.Text(),
+		}, "[Gemini][DetectIngredients] failed to unmarshal json")
+		return nil, err
+	}
+
+	return resp.Ingredients, nil
 }
