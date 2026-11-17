@@ -50,6 +50,8 @@ func (u *AuthUsecase) Register(req dto.RegisterRequest) (dto.AuthResponse, error
 		PasswordHash:    string(hashedPassword),
 		PhoneNumber:     req.PhoneNumber,
 		AreaName:        req.AreaName,
+		Latitude:        req.Latitude,
+		Longitude:       req.Longitude,
 		SharingRadiusKM: 2,
 	}
 
