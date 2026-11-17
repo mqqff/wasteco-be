@@ -5,6 +5,7 @@ type ImpactItemBreakdown struct {
 	Quantity       float64 `json:"quantity"`
 	Unit           string  `json:"unit"`
 	EstimatedPrice float64 `json:"estimated_price"`
+	Subtotal       float64 `json:"subtotal"`
 }
 
 type ImpactActivityResponse struct {

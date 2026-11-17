@@ -91,7 +91,7 @@ func main() {
 			StorageLocation: "Kulkas bagian bawah",
 			ExpiryDate:      &freshDate,
 			Status:          "fresh",
-			EstimatedPrice:  5000,
+			EstimatedPrice:  2500,
 		},
 		{
 			ID:              uuid.New(),
@@ -103,7 +103,7 @@ func main() {
 			StorageLocation: "Pintu kulkas",
 			ExpiryDate:      &freshDate,
 			Status:          "fresh",
-			EstimatedPrice:  4000,
+			EstimatedPrice:  2000,
 		},
 		{
 			ID:              uuid.New(),
@@ -115,7 +115,7 @@ func main() {
 			StorageLocation: "Kulkas bagian bawah",
 			ExpiryDate:      &nearExpiry,
 			Status:          "near_expiry",
-			EstimatedPrice:  3000,
+			EstimatedPrice:  30,
 		},
 		{
 			ID:              uuid.New(),
@@ -127,7 +127,7 @@ func main() {
 			StorageLocation: "Suhu Ruang",
 			ExpiryDate:      &nearExpiry,
 			Status:          "near_expiry",
-			EstimatedPrice:  6000,
+			EstimatedPrice:  1000,
 		},
 	}
 
@@ -194,21 +194,21 @@ func main() {
 	}
 
 	breakdown1, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Nasi Putih", "quantity": 2, "unit": "porsi", "estimated_price": 5000},
-		{"name": "Telur Ayam", "quantity": 2, "unit": "butir", "estimated_price": 4000},
-		{"name": "Wortel", "quantity": 100, "unit": "gram", "estimated_price": 3000},
+		{"name": "Nasi Putih", "quantity": 2, "unit": "porsi", "estimated_price": 2500, "subtotal": 5000},
+		{"name": "Telur Ayam", "quantity": 2, "unit": "butir", "estimated_price": 2000, "subtotal": 4000},
+		{"name": "Wortel", "quantity": 100, "unit": "gram", "estimated_price": 30, "subtotal": 3000},
 	})
 
 	breakdown2, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Labu Siam & Buncis", "quantity": 700, "unit": "gram", "estimated_price": 14000},
+		{"name": "Labu Siam & Buncis", "quantity": 700, "unit": "gram", "estimated_price": 20, "subtotal": 14000},
 	})
 
 	breakdown3, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Sup Telur Puyuh & Wortel", "quantity": 3, "unit": "porsi", "estimated_price": 18000},
+		{"name": "Sup Telur Puyuh & Wortel", "quantity": 3, "unit": "porsi", "estimated_price": 6000, "subtotal": 18000},
 	})
 
 	breakdown4, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Wortel Segar", "quantity": 500, "unit": "gram", "estimated_price": 10000},
+		{"name": "Wortel Segar", "quantity": 500, "unit": "gram", "estimated_price": 20, "subtotal": 10000},
 	})
 
 	activities := []entity.ImpactActivity{

@@ -81,16 +81,20 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 }
 
 func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest) (dto.CookConfirmResponse, error) {
-	var calculatedSavings float64
+	var totalSavings float64
+	breakdown := make([]dto.ImpactItemBreakdown, 0, len(req.UsedIngredients))
 
 	for _, used := range req.UsedIngredients {
-		calculatedSavings += used.EstimatedPrice
+		unitPrice := used.EstimatedPrice
 
 		if used.IngredientID != "" {
 			id, err := uuid.Parse(used.IngredientID)
 			if err == nil {
 				item, err := u.pantryRepo.FindByID(id)
 				if err == nil && item.UserID == userID {
+					if item.EstimatedPrice > 0 {
+						unitPrice = item.EstimatedPrice
+					}
 					if item.Quantity <= used.Quantity {
 						item.Quantity = 0
 						item.Status = "used"
@@ -101,16 +105,21 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 				}
 			}
 		}
-	}
 
-	totalSavings := req.EstimatedSavings
-	if totalSavings <= 0 {
-		totalSavings = calculatedSavings
+		subtotal := used.Quantity * unitPrice
+		totalSavings += subtotal
+		breakdown = append(breakdown, dto.ImpactItemBreakdown{
+			Name:           used.Name,
+			Quantity:       used.Quantity,
+			Unit:           used.Unit,
+			EstimatedPrice: unitPrice,
+			Subtotal:       subtotal,
+		})
 	}
 
 	co2Prevented := float64(req.Portions) * 0.21
 
-	breakdownJSON, _ := sonic.Marshal(req.UsedIngredients)
+	breakdownJSON, _ := sonic.Marshal(breakdown)
 
 	activityID := uuid.New()
 	activity := entity.ImpactActivity{

@@ -14,10 +14,9 @@ type UsedIngredientInput struct {
 }
 
 type CookConfirmRequest struct {
-	RecipeName       string                `json:"recipe_name" validate:"required"`
-	Portions         int                   `json:"portions" validate:"required,min=1"`
-	EstimatedSavings float64               `json:"estimated_savings"`
-	UsedIngredients  []UsedIngredientInput `json:"used_ingredients" validate:"required,min=1"`
+	RecipeName      string                `json:"recipe_name" validate:"required"`
+	Portions        int                   `json:"portions" validate:"required,min=1"`
+	UsedIngredients []UsedIngredientInput `json:"used_ingredients" validate:"required,min=1"`
 }
 
 type CookConfirmResponse struct {
