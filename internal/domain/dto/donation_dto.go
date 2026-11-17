@@ -33,12 +33,11 @@ type DonationUser struct {
 }
 
 type DonationItemResponse struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Quantity  float64 `json:"quantity"`
-	Unit      string  `json:"unit"`
-	Selected  bool    `json:"selected"`
-	UnitPrice float64 `json:"unit_price"`
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Quantity float64 `json:"quantity"`
+	Unit     string  `json:"unit"`
+	Selected bool    `json:"selected"`
 }
 
 type DonationResponse struct {

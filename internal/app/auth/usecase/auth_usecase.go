@@ -102,7 +102,7 @@ func (u *AuthUsecase) Login(req dto.LoginRequest) (dto.AuthResponse, error) {
 		return dto.AuthResponse{}, err
 	}
 
-	totalPortions, totalMoney, _ := u.userRepo.GetContributionSummary(user.ID)
+	totalPortions, _ := u.userRepo.GetContributionSummary(user.ID)
 
 	return dto.AuthResponse{
 		Token: jwtToken,
@@ -116,7 +116,6 @@ func (u *AuthUsecase) Login(req dto.LoginRequest) (dto.AuthResponse, error) {
 			Longitude:          user.Longitude,
 			SharingRadiusKM:    user.SharingRadiusKM,
 			TotalPortionsSaved: totalPortions,
-			TotalMoneySaved:    totalMoney,
 		},
 	}, nil
 }

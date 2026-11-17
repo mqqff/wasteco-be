@@ -12,7 +12,7 @@ type UserRepoItf interface {
 	Show(param dto.UserParam) (entity.User, error)
 	Create(user *entity.User) error
 	Update(user *entity.User) error
-	GetContributionSummary(userID uuid.UUID) (totalPortions int, totalMoney float64, err error)
+	GetContributionSummary(userID uuid.UUID) (totalPortions int, err error)
 }
 
 type UserRepo struct {
@@ -58,14 +58,13 @@ func (r *UserRepo) Show(param dto.UserParam) (entity.User, error) {
 	return user, err
 }
 
-func (r *UserRepo) GetContributionSummary(userID uuid.UUID) (int, float64, error) {
+func (r *UserRepo) GetContributionSummary(userID uuid.UUID) (int, error) {
 	type Result struct {
-		TotalPortions int     `gorm:"column:total_portions"`
-		TotalMoney    float64 `gorm:"column:total_money"`
+		TotalPortions int `gorm:"column:total_portions"`
 	}
 	var res Result
 	err := r.db.Model(&entity.ImpactActivity{}).
-		Select("COALESCE(SUM(portions_saved), 0) as total_portions, COALESCE(SUM(money_saved), 0) as total_money").
+		Select("COALESCE(SUM(portions_saved), 0) as total_portions").
 		Where("user_id = ?", userID).
 		Scan(&res).Error
 
@@ -73,8 +72,8 @@ func (r *UserRepo) GetContributionSummary(userID uuid.UUID) (int, float64, error
 		log.Error(log.LogInfo{
 			"error": err.Error(),
 		}, "[UserRepo][GetContributionSummary] failed to get summary")
-		return 0, 0, err
+		return 0, err
 	}
 
-	return res.TotalPortions, res.TotalMoney, nil
+	return res.TotalPortions, nil
 }

@@ -51,10 +51,10 @@ func (u *ImpactUsecase) GetMonthlySummary(userID uuid.UUID, month, year int) (dt
 	monthName := fmt.Sprintf("%s %d", englishMonths[month], year)
 
 	var cookingPct, donationPct float64
-	totalMoney := summary.CookingMoney + summary.DonationMoney
-	if totalMoney > 0 {
-		cookingPct = math.Round((summary.CookingMoney/totalMoney)*1000) / 10
-		donationPct = math.Round((summary.DonationMoney/totalMoney)*1000) / 10
+	totalPortions := summary.CookingPortions + summary.DonationPortions
+	if totalPortions > 0 {
+		cookingPct = math.Round(float64(summary.CookingPortions)/float64(totalPortions)*1000) / 10
+		donationPct = math.Round(float64(summary.DonationPortions)/float64(totalPortions)*1000) / 10
 	}
 
 	recentDB, _, _ := u.impactRepo.FindAllByUserID(userID, 1, 3)
@@ -68,14 +68,11 @@ func (u *ImpactUsecase) GetMonthlySummary(userID uuid.UUID, month, year int) (dt
 		Year:                year,
 		MonthName:           monthName,
 		TotalPortionsSaved:  summary.TotalPortions,
-		TotalMoneySaved:     summary.TotalMoney,
 		TotalCO2PreventedKg: summary.TotalCO2,
 		Composition: dto.ImpactComposition{
 			CookingPortions:    summary.CookingPortions,
-			CookingMoneySaved:  summary.CookingMoney,
 			CookingPercentage:  cookingPct,
 			DonationPortions:   summary.DonationPortions,
-			DonationMoneySaved: summary.DonationMoney,
 			DonationPercentage: donationPct,
 		},
 		RecentActivities: recentResp,
@@ -130,7 +127,6 @@ func (u *ImpactUsecase) mapToResponse(act entity.ImpactActivity, includeBreakdow
 		ActivityType:   act.ActivityType,
 		Title:          act.Title,
 		PortionsSaved:  act.PortionsSaved,
-		MoneySaved:     act.MoneySaved,
 		CO2PreventedKg: act.CO2PreventedKg,
 		FormattedTime:  formatActivityTime(act.CreatedAt),
 		CreatedAt:      act.CreatedAt.Format(time.RFC3339),

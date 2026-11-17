@@ -81,20 +81,14 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 }
 
 func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest) (dto.CookConfirmResponse, error) {
-	var totalSavings float64
 	breakdown := make([]dto.ImpactItemBreakdown, 0, len(req.UsedIngredients))
 
 	for _, used := range req.UsedIngredients {
-		unitPrice := used.EstimatedPrice
-
 		if used.IngredientID != "" {
 			id, err := uuid.Parse(used.IngredientID)
 			if err == nil {
 				item, err := u.pantryRepo.FindByID(id)
 				if err == nil && item.UserID == userID {
-					if item.EstimatedPrice > 0 {
-						unitPrice = item.EstimatedPrice
-					}
 					if item.Quantity <= used.Quantity {
 						item.Quantity = 0
 						item.Status = "used"
@@ -106,14 +100,10 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 			}
 		}
 
-		subtotal := used.Quantity * unitPrice
-		totalSavings += subtotal
 		breakdown = append(breakdown, dto.ImpactItemBreakdown{
-			Name:           used.Name,
-			Quantity:       used.Quantity,
-			Unit:           used.Unit,
-			EstimatedPrice: unitPrice,
-			Subtotal:       subtotal,
+			Name:     used.Name,
+			Quantity: used.Quantity,
+			Unit:     used.Unit,
 		})
 	}
 
@@ -128,7 +118,6 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 		ActivityType:   "cooking",
 		Title:          req.RecipeName,
 		PortionsSaved:  req.Portions,
-		MoneySaved:     totalSavings,
 		CO2PreventedKg: co2Prevented,
 		ItemsBreakdown: string(breakdownJSON),
 	}
@@ -142,8 +131,7 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 		ActivityID:     activityID.String(),
 		RecipeName:     req.RecipeName,
 		PortionsSaved:  req.Portions,
-		MoneySaved:     totalSavings,
 		CO2PreventedKg: co2Prevented,
-		Message:        fmt.Sprintf("Great job! %d food portions and Rp%.0f successfully prevented from being wasted.", req.Portions, totalSavings),
+		Message:        fmt.Sprintf("Great job! %d food portions successfully prevented from being wasted.", req.Portions),
 	}, nil
 }

@@ -113,7 +113,7 @@ func (r *DonationRepo) Fulfill(id, donorID uuid.UUID, items []entity.DonationReq
 		for _, item := range items {
 			err := tx.Model(&entity.DonationRequestItem{}).
 				Where("id = ? AND request_id = ?", item.ID, id).
-				Updates(map[string]any{"selected": true, "pantry_ingredient_id": item.PantryIngredientID, "unit_price": item.UnitPrice}).Error
+				Updates(map[string]any{"selected": true, "pantry_ingredient_id": item.PantryIngredientID}).Error
 			if err != nil {
 				return err
 			}

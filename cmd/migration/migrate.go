@@ -50,5 +50,26 @@ func main() {
 		return
 	}
 
+	obsoleteColumns := []struct {
+		model  any
+		column string
+	}{
+		{&entity.PantryIngredient{}, "estimated_price"},
+		{&entity.ImpactActivity{}, "money_saved"},
+		{&entity.DonationRequestItem{}, "unit_price"},
+	}
+	for _, c := range obsoleteColumns {
+		if !db.Migrator().HasColumn(c.model, c.column) {
+			continue
+		}
+		if err := db.Migrator().DropColumn(c.model, c.column); err != nil {
+			log.Error(log.LogInfo{
+				"error":  err.Error(),
+				"column": c.column,
+			}, "[Migration][main] failed to drop obsolete column")
+			return
+		}
+	}
+
 	log.Info(nil, "[Migration][main] migration success")
 }

@@ -117,7 +117,6 @@ func newPantryItem(userID uuid.UUID, req dto.CreatePantryItemRequest) entity.Pan
 		StorageLocation: req.StorageLocation,
 		ExpiryDate:      expiryDate,
 		Status:          status,
-		EstimatedPrice:  req.EstimatedPrice,
 	}
 }
 
@@ -152,9 +151,6 @@ func (u *PantryUsecase) UpdateIngredient(userID uuid.UUID, id uuid.UUID, req dto
 	if req.Status != "" {
 		item.Status = req.Status
 	}
-	if req.EstimatedPrice != nil {
-		item.EstimatedPrice = *req.EstimatedPrice
-	}
 	if req.ExpiryDate != nil {
 		if *req.ExpiryDate != "" {
 			parsed, err := time.Parse("2006-01-02", *req.ExpiryDate)
@@ -187,7 +183,6 @@ func (u *PantryUsecase) mapToResponse(item entity.PantryIngredient, now time.Tim
 		Category:        item.Category,
 		StorageLocation: item.StorageLocation,
 		Status:          item.Status,
-		EstimatedPrice:  item.EstimatedPrice,
 		CreatedAt:       item.CreatedAt.Format(time.RFC3339),
 	}
 

@@ -91,7 +91,6 @@ func main() {
 			StorageLocation: "Kulkas bagian bawah",
 			ExpiryDate:      &freshDate,
 			Status:          "fresh",
-			EstimatedPrice:  2500,
 		},
 		{
 			ID:              uuid.New(),
@@ -103,7 +102,6 @@ func main() {
 			StorageLocation: "Pintu kulkas",
 			ExpiryDate:      &freshDate,
 			Status:          "fresh",
-			EstimatedPrice:  2000,
 		},
 		{
 			ID:              uuid.New(),
@@ -115,7 +113,6 @@ func main() {
 			StorageLocation: "Kulkas bagian bawah",
 			ExpiryDate:      &nearExpiry,
 			Status:          "near_expiry",
-			EstimatedPrice:  30,
 		},
 		{
 			ID:              uuid.New(),
@@ -127,7 +124,6 @@ func main() {
 			StorageLocation: "Suhu Ruang",
 			ExpiryDate:      &nearExpiry,
 			Status:          "near_expiry",
-			EstimatedPrice:  1000,
 		},
 	}
 
@@ -205,21 +201,21 @@ func main() {
 	}
 
 	breakdown1, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Nasi Putih", "quantity": 2, "unit": "porsi", "estimated_price": 2500, "subtotal": 5000},
-		{"name": "Telur Ayam", "quantity": 2, "unit": "butir", "estimated_price": 2000, "subtotal": 4000},
-		{"name": "Wortel", "quantity": 100, "unit": "gram", "estimated_price": 30, "subtotal": 3000},
+		{"name": "Nasi Putih", "quantity": 2, "unit": "porsi"},
+		{"name": "Telur Ayam", "quantity": 2, "unit": "butir"},
+		{"name": "Wortel", "quantity": 100, "unit": "gram"},
 	})
 
 	breakdown2, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Labu Siam & Buncis", "quantity": 700, "unit": "gram", "estimated_price": 20, "subtotal": 14000},
+		{"name": "Labu Siam & Buncis", "quantity": 700, "unit": "gram"},
 	})
 
 	breakdown3, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Sup Telur Puyuh & Wortel", "quantity": 3, "unit": "porsi", "estimated_price": 6000, "subtotal": 18000},
+		{"name": "Sup Telur Puyuh & Wortel", "quantity": 3, "unit": "porsi"},
 	})
 
 	breakdown4, _ := sonic.Marshal([]map[string]interface{}{
-		{"name": "Wortel Segar", "quantity": 500, "unit": "gram", "estimated_price": 20, "subtotal": 10000},
+		{"name": "Wortel Segar", "quantity": 500, "unit": "gram"},
 	})
 
 	activities := []entity.ImpactActivity{
@@ -229,7 +225,6 @@ func main() {
 			ActivityType:   "cooking",
 			Title:          "Nasi Goreng Wortel Telur",
 			PortionsSaved:  2,
-			MoneySaved:     12000,
 			CO2PreventedKg: 0.42,
 			ItemsBreakdown: string(breakdown1),
 			CreatedAt:      now.Add(-2 * time.Hour),
@@ -240,7 +235,6 @@ func main() {
 			ActivityType:   "cooking",
 			Title:          "Tumis Labu Siam & Buncis",
 			PortionsSaved:  2,
-			MoneySaved:     14000,
 			CO2PreventedKg: 0.42,
 			ItemsBreakdown: string(breakdown2),
 			CreatedAt:      now.Add(-24 * time.Hour),
@@ -251,7 +245,6 @@ func main() {
 			ActivityType:   "cooking",
 			Title:          "Sup Telur Puyuh & Wortel",
 			PortionsSaved:  3,
-			MoneySaved:     18000,
 			CO2PreventedKg: 0.63,
 			ItemsBreakdown: string(breakdown3),
 			CreatedAt:      now.Add(-72 * time.Hour),
@@ -262,7 +255,6 @@ func main() {
 			ActivityType:   "donation",
 			Title:          "Wortel Segar (500 gram)",
 			PortionsSaved:  2,
-			MoneySaved:     10000,
 			CO2PreventedKg: 0.42,
 			ItemsBreakdown: string(breakdown4),
 			CreatedAt:      now.Add(-5 * time.Hour),

@@ -12,7 +12,6 @@ type UserProfile struct {
 	Longitude          float64 `json:"longitude"`
 	SharingRadiusKM    int     `json:"sharing_radius_km"`
 	TotalPortionsSaved int     `json:"total_portions_saved"`
-	TotalMoneySaved    float64 `json:"total_money_saved"`
 }
 
 type UpdateProfileRequest struct {

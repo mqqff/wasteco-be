@@ -225,7 +225,6 @@ func (u *DonationUsecase) Fulfill(donorID, id uuid.UUID, req dto.FulfillDonation
 
 		if match := matchPantryItem(item.Name, pantry); match != nil {
 			item.PantryIngredientID = &match.ID
-			item.UnitPrice = match.EstimatedPrice
 		}
 		selected = append(selected, item)
 	}
@@ -253,7 +252,6 @@ func (u *DonationUsecase) ConfirmReceived(requesterID, id uuid.UUID) (dto.Donati
 	}
 
 	donorID := *request.DonorID
-	var moneySaved float64
 	portions := 0
 	breakdown := make([]dto.ImpactItemBreakdown, 0, len(request.Items))
 	deductions := make([]donationRepo.PantryDeduction, 0, len(request.Items))
@@ -263,14 +261,10 @@ func (u *DonationUsecase) ConfirmReceived(requesterID, id uuid.UUID) (dto.Donati
 			continue
 		}
 		portions++
-		subtotal := item.Quantity * item.UnitPrice
-		moneySaved += subtotal
 		breakdown = append(breakdown, dto.ImpactItemBreakdown{
-			Name:           item.Name,
-			Quantity:       item.Quantity,
-			Unit:           item.Unit,
-			EstimatedPrice: item.UnitPrice,
-			Subtotal:       subtotal,
+			Name:     item.Name,
+			Quantity: item.Quantity,
+			Unit:     item.Unit,
 		})
 
 		if item.PantryIngredientID != nil {
@@ -289,7 +283,6 @@ func (u *DonationUsecase) ConfirmReceived(requesterID, id uuid.UUID) (dto.Donati
 		ReferenceID:    &request.ID,
 		Title:          fmt.Sprintf("%s (%d item)", request.Title, portions),
 		PortionsSaved:  portions,
-		MoneySaved:     moneySaved,
 		CO2PreventedKg: float64(portions) * 0.21,
 		ItemsBreakdown: string(breakdownJSON),
 	}
@@ -374,12 +367,11 @@ func mapToResponse(r entity.DonationRequest, viewerID uuid.UUID, userLat, userLo
 
 	for _, item := range r.Items {
 		resp.Items = append(resp.Items, dto.DonationItemResponse{
-			ID:        item.ID.String(),
-			Name:      item.Name,
-			Quantity:  item.Quantity,
-			Unit:      item.Unit,
-			Selected:  item.Selected,
-			UnitPrice: item.UnitPrice,
+			ID:       item.ID.String(),
+			Name:     item.Name,
+			Quantity: item.Quantity,
+			Unit:     item.Unit,
+			Selected: item.Selected,
 		})
 	}
 

@@ -16,7 +16,6 @@ type PantryIngredient struct {
 	StorageLocation string     `gorm:"type:varchar(100)"`
 	ExpiryDate      *time.Time `gorm:"type:date"`
 	Status          string     `gorm:"type:enum('fresh','near_expiry','used','donated');default:'fresh';not null"`
-	EstimatedPrice  float64    `gorm:"type:decimal(12,2);default:0"`
 	CreatedAt       time.Time  `gorm:"type:timestamp;autoCreateTime"`
 	UpdatedAt       time.Time  `gorm:"type:timestamp;autoUpdateTime"`
 

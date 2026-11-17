@@ -12,12 +12,9 @@ import (
 
 type MonthlySummary struct {
 	TotalPortions    int     `gorm:"column:total_portions"`
-	TotalMoney       float64 `gorm:"column:total_money"`
 	TotalCO2         float64 `gorm:"column:total_co2"`
 	CookingPortions  int     `gorm:"column:cooking_portions"`
-	CookingMoney     float64 `gorm:"column:cooking_money"`
 	DonationPortions int     `gorm:"column:donation_portions"`
-	DonationMoney    float64 `gorm:"column:donation_money"`
 }
 
 type ImpactRepoItf interface {
@@ -110,12 +107,9 @@ func (r *ImpactRepo) GetMonthlySummary(userID uuid.UUID, month, year int) (Month
 	query := `
 		SELECT 
 			COALESCE(SUM(portions_saved), 0) AS total_portions,
-			COALESCE(SUM(money_saved), 0) AS total_money,
 			COALESCE(SUM(co2_prevented_kg), 0) AS total_co2,
 			COALESCE(SUM(CASE WHEN activity_type = 'cooking' THEN portions_saved ELSE 0 END), 0) AS cooking_portions,
-			COALESCE(SUM(CASE WHEN activity_type = 'cooking' THEN money_saved ELSE 0 END), 0) AS cooking_money,
-			COALESCE(SUM(CASE WHEN activity_type = 'donation' THEN portions_saved ELSE 0 END), 0) AS donation_portions,
-			COALESCE(SUM(CASE WHEN activity_type = 'donation' THEN money_saved ELSE 0 END), 0) AS donation_money
+			COALESCE(SUM(CASE WHEN activity_type = 'donation' THEN portions_saved ELSE 0 END), 0) AS donation_portions
 		FROM impact_activities
 		WHERE user_id = ? AND created_at >= ? AND created_at < ?
 	`

@@ -7,7 +7,6 @@ type CreatePantryItemRequest struct {
 	Category        string  `json:"category"`
 	StorageLocation string  `json:"storage_location"`
 	ExpiryDate      *string `json:"expiry_date"`
-	EstimatedPrice  float64 `json:"estimated_price"`
 }
 
 type BulkCreatePantryItemRequest struct {
@@ -22,7 +21,6 @@ type UpdatePantryItemRequest struct {
 	StorageLocation string   `json:"storage_location"`
 	ExpiryDate      *string  `json:"expiry_date"`
 	Status          string   `json:"status" validate:"omitempty,oneof=fresh near_expiry used donated"`
-	EstimatedPrice  *float64 `json:"estimated_price"`
 }
 
 type PantryItemResponse struct {
@@ -34,7 +32,6 @@ type PantryItemResponse struct {
 	StorageLocation string  `json:"storage_location"`
 	ExpiryDate      string  `json:"expiry_date,omitempty"`
 	Status          string  `json:"status"`
-	EstimatedPrice  float64 `json:"estimated_price"`
 	DaysUntilExpiry *int    `json:"days_until_expiry,omitempty"`
 	CreatedAt       string  `json:"created_at"`
 }

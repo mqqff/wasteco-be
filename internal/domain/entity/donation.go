@@ -37,5 +37,4 @@ type DonationRequestItem struct {
 	Unit               string     `gorm:"type:varchar(50);not null"`
 	Selected           bool       `gorm:"not null;default:false"`
 	PantryIngredientID *uuid.UUID `gorm:"type:char(36)"`
-	UnitPrice          float64    `gorm:"type:decimal(12,2);not null;default:0"`
 }

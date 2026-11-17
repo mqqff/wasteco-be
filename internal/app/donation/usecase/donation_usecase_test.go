@@ -92,8 +92,8 @@ func TestFulfillThenConfirmReceivedLogsDonorImpact(t *testing.T) {
 		},
 	}}
 	pantry := &fakePantryRepo{items: map[uuid.UUID]entity.PantryIngredient{
-		pantryCarrot: {ID: pantryCarrot, UserID: donorID, Name: "Wortel", Quantity: 600, EstimatedPrice: 30, Status: "fresh"},
-		pantryEgg:    {ID: pantryEgg, UserID: donorID, Name: "Telur Ayam", Quantity: 3, EstimatedPrice: 2000, Status: "fresh"},
+		pantryCarrot: {ID: pantryCarrot, UserID: donorID, Name: "Wortel", Quantity: 600, Status: "fresh"},
+		pantryEgg:    {ID: pantryEgg, UserID: donorID, Name: "Telur Ayam", Quantity: 3, Status: "fresh"},
 	}}
 	u := NewDonationUsecase(donations, pantry, &fakeUserRepo{})
 	id := donations.request.ID
@@ -125,8 +125,8 @@ func TestFulfillThenConfirmReceivedLogsDonorImpact(t *testing.T) {
 	if got.UserID != donorID || got.ActivityType != "donation" {
 		t.Fatalf("impact logged for %v (%s), want donor donation", got.UserID, got.ActivityType)
 	}
-	if got.MoneySaved != 23000 || got.PortionsSaved != 2 {
-		t.Fatalf("money = %v portions = %d, want 23000 and 2", got.MoneySaved, got.PortionsSaved)
+	if got.PortionsSaved != 2 {
+		t.Fatalf("portions = %d, want 2", got.PortionsSaved)
 	}
 	want := map[uuid.UUID]float64{pantryCarrot: 500, pantryEgg: 4}
 	if len(donations.deductions) != len(want) {

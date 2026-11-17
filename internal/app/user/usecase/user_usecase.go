@@ -32,10 +32,9 @@ func (u *UserUsecase) GetProfile(userID uuid.UUID) (dto.UserProfile, error) {
 		return dto.UserProfile{}, errors.New("user not found")
 	}
 
-	totalPortions, totalMoney, err := u.userRepo.GetContributionSummary(userID)
+	totalPortions, err := u.userRepo.GetContributionSummary(userID)
 	if err != nil {
 		totalPortions = 0
-		totalMoney = 0
 	}
 
 	userProfile := dto.UserProfile{
@@ -48,7 +47,6 @@ func (u *UserUsecase) GetProfile(userID uuid.UUID) (dto.UserProfile, error) {
 		Longitude:          user.Longitude,
 		SharingRadiusKM:    user.SharingRadiusKM,
 		TotalPortionsSaved: totalPortions,
-		TotalMoneySaved:    totalMoney,
 	}
 
 	return userProfile, nil

@@ -28,7 +28,6 @@ type GeneratedRecipe struct {
 	CookingTimeMinutes    int                `json:"cooking_time_minutes"`
 	Difficulty            string             `json:"difficulty"`
 	Portions              int                `json:"portions"`
-	EstimatedSavings      float64            `json:"estimated_savings"`
 	AvailableIngredients  []RecipeIngredient `json:"available_ingredients"`
 	AdditionalIngredients []RecipeIngredient `json:"additional_ingredients"`
 	Steps                 []string           `json:"steps"`
@@ -40,10 +39,9 @@ type RecipeResponse struct {
 }
 
 type DetectedIngredient struct {
-	Name      string  `json:"name"`
-	Quantity  float64 `json:"quantity"`
-	Unit      string  `json:"unit"`
-	UnitPrice float64 `json:"unit_price"`
+	Name     string  `json:"name"`
+	Quantity float64 `json:"quantity"`
+	Unit     string  `json:"unit"`
 }
 
 type detectResponse struct {
@@ -95,10 +93,9 @@ Aturan penting:
 1. Prioritaskan penggunaan bahan yang tersedia sebanyak mungkin.
 2. Tambahkan hanya bumbu/bahan dasar umum rumah tangga Indonesia (seperti minyak, garam, bawang putih/merah, kecap, merica) pada 'additional_ingredients'.
 3. 'match_percentage' adalah persentase kecocokan bahan dapur yang tersedia (nilai 50 sampai 95). Urutkan resep dari kecocokan tertinggi ke terendah.
-4. 'estimated_savings' adalah estimasi perkiraan rupiah yang dihemat dengan mengolah bahan sisa ini dibanding makan di luar atau membeli bahan baru (contoh: 12000, 15000, 20000).
-5. 'steps' adalah instruksi memasak langkah demi langkah (antara 4 sampai 6 tahap) yang singkat dan jelas.
-6. 'smart_tips' memberikan tips dapur praktis untuk menjaga cita rasa dan mencegah bahan tersisa lagi.
-7. Seluruh teks wajib menggunakan Bahasa Indonesia yang ramah, jelas, dan menggugah selera.
+4. 'steps' adalah instruksi memasak langkah demi langkah (antara 4 sampai 6 tahap) yang singkat dan jelas.
+5. 'smart_tips' memberikan tips dapur praktis untuk menjaga cita rasa dan mencegah bahan tersisa lagi.
+6. Seluruh teks wajib menggunakan Bahasa Indonesia yang ramah, jelas, dan menggugah selera.
 `, sb.String())
 
 	temp := float32(0.2)
@@ -126,7 +123,6 @@ Aturan penting:
 								"cooking_time_minutes": {Type: genai.TypeInteger},
 								"difficulty":           {Type: genai.TypeString},
 								"portions":             {Type: genai.TypeInteger},
-								"estimated_savings":    {Type: genai.TypeNumber},
 								"available_ingredients": {
 									Type: genai.TypeArray,
 									Items: &genai.Schema{
@@ -157,7 +153,7 @@ Aturan penting:
 							},
 							Required: []string{
 								"recipe_name", "match_percentage", "cooking_time_minutes",
-								"difficulty", "portions", "estimated_savings",
+								"difficulty", "portions",
 								"available_ingredients", "additional_ingredients",
 								"steps", "smart_tips",
 							},
@@ -202,8 +198,7 @@ Identifikasi setiap bahan makanan mentah atau sisa yang terlihat di foto.
 Aturan penting:
 1. 'name' adalah nama bahan dalam Bahasa Indonesia (contoh: Bayam, Tomat, Bawang Putih, Nasi Putih).
 2. 'quantity' adalah perkiraan jumlah yang terlihat, 'unit' adalah satuan rumah tangga yang wajar (contoh: ikat, buah, siung, butir, porsi, gram, lembar).
-3. 'unit_price' adalah perkiraan harga pasar per SATU satuan dalam Rupiah (contoh: bayam 3000 per ikat, tomat 1000 per buah, wortel 30 per gram).
-4. Abaikan benda yang bukan bahan makanan. Jika tidak ada bahan makanan, kembalikan daftar kosong.
+3. Abaikan benda yang bukan bahan makanan. Jika tidak ada bahan makanan, kembalikan daftar kosong.
 `
 
 	temp := float32(0.1)
@@ -233,12 +228,11 @@ Aturan penting:
 						Items: &genai.Schema{
 							Type: genai.TypeObject,
 							Properties: map[string]*genai.Schema{
-								"name":       {Type: genai.TypeString},
-								"quantity":   {Type: genai.TypeNumber},
-								"unit":       {Type: genai.TypeString},
-								"unit_price": {Type: genai.TypeNumber},
+								"name":     {Type: genai.TypeString},
+								"quantity": {Type: genai.TypeNumber},
+								"unit":     {Type: genai.TypeString},
 							},
-							Required: []string{"name", "quantity", "unit", "unit_price"},
+							Required: []string{"name", "quantity", "unit"},
 						},
 					},
 				},
