@@ -190,7 +190,7 @@
           "Pantry"
         ],
         "summary": "Add Pantry Ingredient",
-        "description": "Add a new food item into the user's pantry inventory. Status is automatically classified as 'near_expiry' if expiry date is within 3 days.\n\n**Figma Screen Reference**: Screen S05 (Input Bahan Cepat / Quick Add Ingredient Modal).",
+        "description": "Add a new food item into the user's pantry inventory. `estimated_price` is the **price per unit** (e.g. Rp2.500 per porsi), used to compute savings as quantity × unit price. `category`, `storage_location`, and `expiry_date` are optional. Status is automatically classified as 'near_expiry' if expiry date is within 3 days.\n\n**Figma Screen Reference**: Screen S05 (Input Bahan Sisa — manual form: name, quantity, unit, unit price).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -204,13 +204,10 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Wortel Segar",
-                "quantity": 250,
+                "name": "Wortel",
+                "quantity": 100,
                 "unit": "gram",
-                "category": "Sayuran",
-                "storage_location": "Kulkas bagian bawah",
-                "expiry_date": "2026-11-15",
-                "estimated_price": 5000
+                "estimated_price": 30
               }
             }
           }
@@ -218,6 +215,137 @@
         "responses": {
           "201": {
             "description": "Pantry ingredient created successfully"
+          }
+        }
+      }
+    },
+    "/api/v1/pantry/bulk": {
+      "post": {
+        "tags": [
+          "Pantry"
+        ],
+        "summary": "Bulk Add Pantry Ingredients",
+        "description": "Add several pantry items in one call (1–50 items), typically the reviewed result of `POST /pantry/scan`. Each item follows the same rules as `POST /pantry`; `estimated_price` is the price per unit.\n\n**Figma Screen Reference**: Screen S05B (Cek Hasil Foto — \"Tambahkan 3 Bahan\") → S05C (toast \"3 bahan berhasil ditambahkan\").",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "items": [
+                  {
+                    "name": "Bayam",
+                    "quantity": 1,
+                    "unit": "ikat",
+                    "estimated_price": 3000
+                  },
+                  {
+                    "name": "Tomat",
+                    "quantity": 2,
+                    "unit": "buah",
+                    "estimated_price": 1000
+                  },
+                  {
+                    "name": "Bawang Putih",
+                    "quantity": 4,
+                    "unit": "siung",
+                    "estimated_price": 500
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pantry ingredients created successfully. Payload: `ingredients` (array) and `total`."
+          },
+          "400": {
+            "description": "Empty list, more than 50 items, or invalid item (`validation_error`)."
+          }
+        }
+      }
+    },
+    "/api/v1/pantry/scan": {
+      "post": {
+        "tags": [
+          "Pantry"
+        ],
+        "summary": "Detect Ingredients from Photo (Gemini Vision)",
+        "description": "Upload a photo of leftover ingredients; Gemini AI detects each ingredient with an estimated quantity, unit, and unit price (Rp). **Nothing is saved** — the client shows the result for review/editing, then saves it with `POST /pantry/bulk`.\n\nAccepted: JPEG, PNG, WebP (detected from file content), max 4 MB request body.\n\n**Figma Screen Reference**: Screen S05A (Foto Bahan Sisa) → S05B (Cek Hasil Foto).",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "image"
+                ],
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Photo of the ingredients"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Detected ingredients (may be an empty list).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "ingredients": [
+                      {
+                        "name": "Bayam",
+                        "quantity": 1,
+                        "unit": "ikat",
+                        "unit_price": 3000
+                      },
+                      {
+                        "name": "Tomat",
+                        "quantity": 2,
+                        "unit": "buah",
+                        "unit_price": 1000
+                      },
+                      {
+                        "name": "Bawang Putih",
+                        "quantity": 4,
+                        "unit": "siung",
+                        "unit_price": 500
+                      }
+                    ],
+                    "total": 3
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing `image` field or unsupported file type (`bad_request` / `validation_error`)."
+          },
+          "500": {
+            "description": "Gemini failed or is temporarily overloaded (`internal_server_error`); safe to retry."
           }
         }
       }
@@ -347,7 +475,7 @@
           "Recipes & AI"
         ],
         "summary": "Confirm Cooking & Auto-Deduct Pantry",
-        "description": "Confirms recipe preparation completion. Automatically subtracts used ingredient quantities from the pantry (or updates status to 'used' if fully depleted), and automatically logs the food rescue activity into the impact ledger with portions saved, estimated cost savings, and CO2e prevented.\n\n**Figma Screen Reference**: Screen S08 (Konfirmasi Selesai Memasak / Cooking Confirmation Screen).",
+        "description": "Confirms recipe preparation completion. Automatically subtracts used ingredient quantities from the pantry (or updates status to 'used' if fully depleted), and automatically logs the food rescue activity into the impact ledger with portions saved, estimated cost savings, and CO2e prevented.\n\n**Figma Screen Reference**: Screen S08 (Konfirmasi Selesai Memasak / Cooking Confirmation Screen).\n\n**Savings calculation**: money saved = Σ quantity × unit price. For items with an `ingredient_id` owned by the user, the unit price is taken from the pantry item (`estimated_price`); otherwise from the request's `estimated_price` (per unit). Client-sent totals are not accepted.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -361,16 +489,20 @@
           "content": {
             "application/json": {
               "example": {
-                "recipe_name": "Nasi Goreng Kampung Spesial Wortel Telur",
+                "recipe_name": "Nasi Goreng Wortel Telur",
                 "portions": 2,
-                "estimated_savings": 25000,
                 "used_ingredients": [
                   {
                     "ingredient_id": "fbc6bf3d-6155-4332-9e62-7ff1d2a36790",
                     "name": "Nasi Putih",
-                    "quantity": 1,
-                    "unit": "porsi",
-                    "estimated_price": 5000
+                    "quantity": 2,
+                    "unit": "porsi"
+                  },
+                  {
+                    "name": "Telur Ayam",
+                    "quantity": 2,
+                    "unit": "butir",
+                    "estimated_price": 2000
                   }
                 ]
               }
@@ -389,8 +521,16 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Explore Nearby Food Donations (Haversine)",
-        "description": "Explore available surplus food donations posted by neighbors. Calculates real-time distance using the Haversine formula based on user coordinates (lat/long) and formats distance (e.g. '511 m', '1.8 km'). Supports filtering by category, radius in km, and search keywords.\n\n**Figma Screen Reference**: Screen S09 (Hub Berbagi / Sharing Hub List) & Screen S10 (Peta Berbagi / Geolocation Map Screen).",
+        "summary": "List Nearby Donation Requests",
+        "description": "Open, non-expired requests from other users, sorted by distance (Haversine). `lat`/`long` default to the caller's profile coordinates and `radius` (km) to the profile `sharing_radius_km`. Contacts are omitted in lists.\n\n**Flow**: requester creates a request (`open`) → one donor fulfils selected items (`handed_over`) → requester confirms receipt (`received`, donor's impact is logged). Requester may cancel while `open` or `handed_over`. Coordination happens via WhatsApp (`whatsapp_url`).\n\n**Figma Screen Reference**: S09 (Donation Hub — Sekitar Saya), S10 (Peta Permintaan), S04 (Permintaan di Sekitarmu).",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "lat",
@@ -398,8 +538,7 @@
             "schema": {
               "type": "number"
             },
-            "example": -7.9535,
-            "description": "User GPS latitude"
+            "description": "Viewer latitude (optional)"
           },
           {
             "name": "long",
@@ -407,8 +546,7 @@
             "schema": {
               "type": "number"
             },
-            "example": 112.608,
-            "description": "User GPS longitude"
+            "description": "Viewer longitude (optional)"
           },
           {
             "name": "radius",
@@ -416,17 +554,7 @@
             "schema": {
               "type": "number"
             },
-            "example": 5,
-            "description": "Search radius in km (default 5 km)"
-          },
-          {
-            "name": "category",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "example": "Sayuran",
-            "description": "Filter by category"
+            "description": "Radius in km (optional)"
           },
           {
             "name": "search",
@@ -434,13 +562,70 @@
             "schema": {
               "type": "string"
             },
-            "example": "kentang",
-            "description": "Search keyword for title or notes"
+            "description": "Matches request title or item names"
           }
         ],
         "responses": {
           "200": {
-            "description": "List of available food donations with distance and donor summary"
+            "description": "Nearby open requests",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "donations": [
+                      {
+                        "id": "b3f1c7d2-8e4a-4c6b-9f2d-1a7e5c3b9d40",
+                        "title": "Wortel & Telur",
+                        "note": "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+                        "area_name": "Dinoyo, Malang",
+                        "meeting_point": "Depan Minimarket Dinoyo",
+                        "latitude": -7.9535,
+                        "longitude": 112.608,
+                        "receive_start": "2026-11-17T16:00:00+07:00",
+                        "receive_end": "2026-11-17T19:00:00+07:00",
+                        "status": "open",
+                        "item_count": 3,
+                        "items": [
+                          {
+                            "id": "6f1c2a9e-3b0d-4f7a-9a51-2d9b8c7e4f10",
+                            "name": "Wortel",
+                            "quantity": 500,
+                            "unit": "gram",
+                            "selected": false,
+                            "unit_price": 0
+                          },
+                          {
+                            "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
+                            "name": "Telur Ayam",
+                            "quantity": 4,
+                            "unit": "butir",
+                            "selected": false,
+                            "unit_price": 0
+                          },
+                          {
+                            "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
+                            "name": "Nasi Putih",
+                            "quantity": 2,
+                            "unit": "porsi",
+                            "selected": false,
+                            "unit_price": 0
+                          }
+                        ],
+                        "distance_km": 0.8,
+                        "formatted_distance": "800 m",
+                        "created_at": "2026-11-17T15:00:00+07:00",
+                        "requester": {
+                          "id": "a3946688-91fe-4dda-a899-f7204db5a012",
+                          "name": "Budi Santoso",
+                          "area_name": "Dinoyo, Malang"
+                        }
+                      }
+                    ],
+                    "total": 1
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -448,8 +633,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Post Food Donation (Multipart)",
-        "description": "Publish a new surplus food donation for neighbors. Supports uploading up to 3 food photos to Supabase Storage, condition notes, storage method, pickup deadline, meeting point location, coordinates, and WhatsApp coordination number.\n\n**Figma Screen Reference**: Screen S12 (Buat Donasi / Create Food Donation Screen).",
+        "summary": "Create Donation Request",
+        "description": "Ask neighbours for ingredients. `title` is optional (defaults to the first two item names joined by \" & \"), `area_name` defaults to the profile area. `receive_end` must be after `receive_start` and in the future. The requester must have a WhatsApp number (`phone_number`) in their profile.\n\n**Flow**: requester creates a request (`open`) → one donor fulfils selected items (`handed_over`) → requester confirms receipt (`received`, donor's impact is logged). Requester may cancel while `open` or `handed_over`. Coordination happens via WhatsApp (`whatsapp_url`).\n\n**Figma Screen Reference**: S12 (Buat Permintaan).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -461,81 +646,100 @@
         "requestBody": {
           "required": true,
           "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "example": "Wortel Segar Kebun"
+            "application/json": {
+              "example": {
+                "title": "Wortel & Telur",
+                "note": "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+                "items": [
+                  {
+                    "name": "Wortel",
+                    "quantity": 500,
+                    "unit": "gram"
                   },
-                  "category": {
-                    "type": "string",
-                    "example": "Sayuran"
+                  {
+                    "name": "Telur Ayam",
+                    "quantity": 4,
+                    "unit": "butir"
                   },
-                  "quantity": {
-                    "type": "number",
-                    "example": 500
-                  },
-                  "unit": {
-                    "type": "string",
-                    "example": "gram"
-                  },
-                  "condition_note": {
-                    "type": "string",
-                    "example": "Sudah dicuci bersih, kulit masih renyah dan tidak lembek."
-                  },
-                  "storage_method": {
-                    "type": "string",
-                    "example": "Chiller kulkas wadah tertutup"
-                  },
-                  "pickup_deadline": {
-                    "type": "string",
-                    "example": "2026-11-13T18:00:00Z"
-                  },
-                  "area_name": {
-                    "type": "string",
-                    "example": "Dinoyo, Malang"
-                  },
-                  "meeting_point": {
-                    "type": "string",
-                    "example": "Depan minimarket Alfamart MT Haryono"
-                  },
-                  "latitude": {
-                    "type": "number",
-                    "example": -7.9535
-                  },
-                  "longitude": {
-                    "type": "number",
-                    "example": 112.608
-                  },
-                  "whatsapp_number": {
-                    "type": "string",
-                    "example": "+6281358902144"
-                  },
-                  "estimated_price": {
-                    "type": "number",
-                    "example": 10000
-                  },
-                  "estimated_portions": {
-                    "type": "integer",
-                    "example": 2
-                  },
-                  "photos": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "binary"
-                    }
+                  {
+                    "name": "Nasi Putih",
+                    "quantity": 2,
+                    "unit": "porsi"
                   }
-                }
+                ],
+                "area_name": "Dinoyo, Malang",
+                "meeting_point": "Depan Minimarket Dinoyo",
+                "latitude": -7.9535,
+                "longitude": 112.608,
+                "receive_start": "2026-11-17T16:00:00+07:00",
+                "receive_end": "2026-11-17T19:00:00+07:00"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Food donation published successfully"
+            "description": "Donation request created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "donation": {
+                      "id": "b3f1c7d2-8e4a-4c6b-9f2d-1a7e5c3b9d40",
+                      "title": "Wortel & Telur",
+                      "note": "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+                      "area_name": "Dinoyo, Malang",
+                      "meeting_point": "Depan Minimarket Dinoyo",
+                      "latitude": -7.9535,
+                      "longitude": 112.608,
+                      "receive_start": "2026-11-17T16:00:00+07:00",
+                      "receive_end": "2026-11-17T19:00:00+07:00",
+                      "status": "open",
+                      "item_count": 3,
+                      "items": [
+                        {
+                          "id": "6f1c2a9e-3b0d-4f7a-9a51-2d9b8c7e4f10",
+                          "name": "Wortel",
+                          "quantity": 500,
+                          "unit": "gram",
+                          "selected": false,
+                          "unit_price": 0
+                        },
+                        {
+                          "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
+                          "name": "Telur Ayam",
+                          "quantity": 4,
+                          "unit": "butir",
+                          "selected": false,
+                          "unit_price": 0
+                        },
+                        {
+                          "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
+                          "name": "Nasi Putih",
+                          "quantity": 2,
+                          "unit": "porsi",
+                          "selected": false,
+                          "unit_price": 0
+                        }
+                      ],
+                      "requester": {
+                        "id": "a3946688-91fe-4dda-a899-f7204db5a012",
+                        "name": "Budi Santoso",
+                        "area_name": "Dinoyo, Malang",
+                        "whatsapp_number": "+6281358902144",
+                        "whatsapp_url": "https://wa.me/6281358902144"
+                      },
+                      "distance_km": 0.8,
+                      "formatted_distance": "800 m",
+                      "created_at": "2026-11-17T15:00:00+07:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`validation_error`, `bad_request`, or `phone_number_required` (user has no WhatsApp number in profile)."
           }
         }
       }
@@ -545,8 +749,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Get My Posted Donations",
-        "description": "Retrieve food donations posted by the authenticated user, organized into active ('available', 'in_progress') and history ('completed', 'cancelled') tabs.\n\n**Figma Screen Reference**: Screen S13 (Donasi Saya / My Donations Management Screen).",
+        "summary": "My Donation Requests",
+        "description": "Requests created by the caller. `active` = `open` / `handed_over`, `history` = `received` / `cancelled`. Includes donor info and WhatsApp link once fulfilled.\n\n**Figma Screen Reference**: S13 (Permintaan Saya — status Dibuat → Diserahkan → Diterima).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -557,7 +761,75 @@
         ],
         "responses": {
           "200": {
-            "description": "List of user's active and past donations"
+            "description": "Caller's requests",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "active": [
+                      {
+                        "id": "b3f1c7d2-8e4a-4c6b-9f2d-1a7e5c3b9d40",
+                        "title": "Wortel & Telur",
+                        "note": "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+                        "area_name": "Dinoyo, Malang",
+                        "meeting_point": "Depan Minimarket Dinoyo",
+                        "latitude": -7.9535,
+                        "longitude": 112.608,
+                        "receive_start": "2026-11-17T16:00:00+07:00",
+                        "receive_end": "2026-11-17T19:00:00+07:00",
+                        "status": "handed_over",
+                        "item_count": 3,
+                        "items": [
+                          {
+                            "id": "6f1c2a9e-3b0d-4f7a-9a51-2d9b8c7e4f10",
+                            "name": "Wortel",
+                            "quantity": 500,
+                            "unit": "gram",
+                            "selected": false,
+                            "unit_price": 0
+                          },
+                          {
+                            "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
+                            "name": "Telur Ayam",
+                            "quantity": 4,
+                            "unit": "butir",
+                            "selected": false,
+                            "unit_price": 0
+                          },
+                          {
+                            "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
+                            "name": "Nasi Putih",
+                            "quantity": 2,
+                            "unit": "porsi",
+                            "selected": false,
+                            "unit_price": 0
+                          }
+                        ],
+                        "requester": {
+                          "id": "a3946688-91fe-4dda-a899-f7204db5a012",
+                          "name": "Budi Santoso",
+                          "area_name": "Dinoyo, Malang",
+                          "whatsapp_number": "+6281358902144",
+                          "whatsapp_url": "https://wa.me/6281358902144"
+                        },
+                        "distance_km": 0.8,
+                        "formatted_distance": "800 m",
+                        "created_at": "2026-11-17T15:00:00+07:00",
+                        "handed_over_at": "2026-11-17T16:20:00+07:00",
+                        "donor": {
+                          "id": "0f2c7b9a-0fcb-4d4b-a332-f166265f4247",
+                          "name": "Siti Aminah",
+                          "area_name": "Lowokwaru, Malang",
+                          "whatsapp_number": "+6285712345678",
+                          "whatsapp_url": "https://wa.me/6285712345678"
+                        }
+                      }
+                    ],
+                    "history": []
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -567,38 +839,105 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Get Donation Detail & Donor Contact",
-        "description": "Retrieve comprehensive details of a food donation, image photo URLs, food condition guide, pickup deadline, meeting point address, donor profile, and WhatsApp coordination number.\n\n**Figma Screen Reference**: Screen S11 (Detail Donasi) & Screen S11A (Dialog Lanjut ke WhatsApp).",
+        "summary": "Donation Request Detail",
+        "description": "Full request detail with items. WhatsApp contacts are included when the request is `open` (so donors can coordinate) or when the caller is the requester or the donor.\n\n**Figma Screen Reference**: S11 (Detail Permintaan — Donor).",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
-            "description": "Donation UUID"
+            "description": "Donation request ID"
           },
           {
             "name": "lat",
             "in": "query",
             "schema": {
               "type": "number"
-            },
-            "description": "Optional user latitude for distance"
+            }
           },
           {
             "name": "long",
             "in": "query",
             "schema": {
               "type": "number"
-            },
-            "description": "Optional user longitude for distance"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Detailed donation information and donor contact"
+            "description": "Donation request detail",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "donation": {
+                      "id": "b3f1c7d2-8e4a-4c6b-9f2d-1a7e5c3b9d40",
+                      "title": "Wortel & Telur",
+                      "note": "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+                      "area_name": "Dinoyo, Malang",
+                      "meeting_point": "Depan Minimarket Dinoyo",
+                      "latitude": -7.9535,
+                      "longitude": 112.608,
+                      "receive_start": "2026-11-17T16:00:00+07:00",
+                      "receive_end": "2026-11-17T19:00:00+07:00",
+                      "status": "open",
+                      "item_count": 3,
+                      "items": [
+                        {
+                          "id": "6f1c2a9e-3b0d-4f7a-9a51-2d9b8c7e4f10",
+                          "name": "Wortel",
+                          "quantity": 500,
+                          "unit": "gram",
+                          "selected": false,
+                          "unit_price": 0
+                        },
+                        {
+                          "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
+                          "name": "Telur Ayam",
+                          "quantity": 4,
+                          "unit": "butir",
+                          "selected": false,
+                          "unit_price": 0
+                        },
+                        {
+                          "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
+                          "name": "Nasi Putih",
+                          "quantity": 2,
+                          "unit": "porsi",
+                          "selected": false,
+                          "unit_price": 0
+                        }
+                      ],
+                      "requester": {
+                        "id": "a3946688-91fe-4dda-a899-f7204db5a012",
+                        "name": "Budi Santoso",
+                        "area_name": "Dinoyo, Malang",
+                        "whatsapp_number": "+6281358902144",
+                        "whatsapp_url": "https://wa.me/6281358902144"
+                      },
+                      "distance_km": 0.8,
+                      "formatted_distance": "800 m",
+                      "created_at": "2026-11-17T15:00:00+07:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found` — donation request does not exist."
           }
         }
       },
@@ -606,8 +945,8 @@
         "tags": [
           "Donations"
         ],
-        "summary": "Cancel Donation",
-        "description": "Cancel an active food donation post (updates status to 'cancelled'). Only allowed by the donor owner.\n\n**Figma Screen Reference**: Screen S13 (Batalkan Donasi / Cancel Donation Action).",
+        "summary": "Cancel Donation Request",
+        "description": "Requester cancels their own request while it is `open` or `handed_over`.\n\n**Figma Screen Reference**: S13 (Batalkan Permintaan).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -622,25 +961,44 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
-            "description": "Donation UUID"
+            "description": "Donation request ID"
           }
         ],
         "responses": {
           "200": {
-            "description": "Donation cancelled successfully"
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "cancelled": true
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden` — caller is not allowed to perform this action."
+          },
+          "404": {
+            "description": "`not_found` — donation request does not exist."
+          },
+          "409": {
+            "description": "`invalid_state` — request is no longer in a state that allows this action (already taken, expired, received, or cancelled)."
           }
         }
       }
     },
-    "/api/v1/donations/{id}/status": {
-      "patch": {
+    "/api/v1/donations/{id}/fulfill": {
+      "post": {
         "tags": [
           "Donations"
         ],
-        "summary": "Update Donation Status",
-        "description": "Update the operational status of a donation post (e.g., mark as 'in_progress' when a neighbor contacts via WhatsApp).\n\n**Figma Screen Reference**: Screen S13 (Ubah Status Donasi / Update Status).",
+        "summary": "Fulfil Donation Request (Donor)",
+        "description": "A donor commits to hand over some or all requested items. Only **one donor** per request: the first successful call moves it to `handed_over`; later calls get `409`. Each selected item is matched by name to the donor's pantry; the matched pantry unit price is stored for impact calculation (unmatched items count as Rp0). The donor must have a WhatsApp number in their profile.\n\n**Figma Screen Reference**: S11 (Pilih Bahan yang Diserahkan) → S11A (Bahan Siap Diserahkan).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -655,9 +1013,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
-            "description": "Donation UUID"
+            "description": "Donation request ID"
           }
         ],
         "requestBody": {
@@ -665,25 +1024,81 @@
           "content": {
             "application/json": {
               "example": {
-                "status": "in_progress"
+                "item_ids": [
+                  "6f1c2a9e-3b0d-4f7a-9a51-2d9b8c7e4f10",
+                  "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87"
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Donation status updated"
+            "description": "Request fulfilled",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "donation": {
+                      "id": "b3f1c7d2-8e4a-4c6b-9f2d-1a7e5c3b9d40",
+                      "title": "Wortel & Telur",
+                      "note": "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+                      "area_name": "Dinoyo, Malang",
+                      "meeting_point": "Depan Minimarket Dinoyo",
+                      "latitude": -7.9535,
+                      "longitude": 112.608,
+                      "receive_start": "2026-11-17T16:00:00+07:00",
+                      "receive_end": "2026-11-17T19:00:00+07:00",
+                      "status": "handed_over",
+                      "item_count": 3,
+                      "items": [
+                        {
+                          "id": "6f1c2a9e-3b0d-4f7a-9a51-2d9b8c7e4f10",
+                          "name": "Wortel",
+                          "quantity": 500,
+                          "unit": "gram",
+                          "selected": true,
+                          "unit_price": 30
+                        }
+                      ],
+                      "requester": {
+                        "id": "a3946688-91fe-4dda-a899-f7204db5a012",
+                        "name": "Budi Santoso",
+                        "area_name": "Dinoyo, Malang",
+                        "whatsapp_number": "+6281358902144",
+                        "whatsapp_url": "https://wa.me/6281358902144"
+                      },
+                      "distance_km": 0.8,
+                      "formatted_distance": "800 m",
+                      "created_at": "2026-11-17T15:00:00+07:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`validation_error`, `bad_request`, or `phone_number_required` (user has no WhatsApp number in profile)."
+          },
+          "403": {
+            "description": "`forbidden` — caller is not allowed to perform this action."
+          },
+          "404": {
+            "description": "`not_found` — donation request does not exist."
+          },
+          "409": {
+            "description": "`invalid_state` — request is no longer in a state that allows this action (already taken, expired, received, or cancelled)."
           }
         }
       }
     },
-    "/api/v1/donations/{id}/confirm-handed": {
+    "/api/v1/donations/{id}/confirm-received": {
       "post": {
         "tags": [
           "Donations"
         ],
-        "summary": "Confirm Donation Handover (Record Impact)",
-        "description": "Confirm the physical handover of food to a recipient. Marks donation status as 'completed', removes it from public discovery, and automatically logs the food rescue activity into the impact ledger with portions saved, estimated food value (Rp), and CO2e prevented.\n\n**Figma Screen Reference**: Screen S13 & Screen S14 (Konfirmasi Berhasil Dibagikan / Handover Confirmation Screen).",
+        "summary": "Confirm Receipt (Requester)",
+        "description": "Requester confirms the items were received. Status becomes `received`, the donor's pantry stock is reduced (status `donated` when empty), and a `donation` impact activity is logged **for the donor**: portions = number of handed-over items, money saved = Σ quantity × unit price.\n\n**Figma Screen Reference**: S14 (Konfirmasi Penerimaan) → donor's S15B (Statistik Setelah Donasi).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -698,14 +1113,82 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
-            "description": "Donation UUID"
+            "description": "Donation request ID"
           }
         ],
         "responses": {
           "200": {
-            "description": "Donation marked completed and impact activity recorded successfully"
+            "description": "Receipt confirmed",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": {
+                    "donation": {
+                      "id": "b3f1c7d2-8e4a-4c6b-9f2d-1a7e5c3b9d40",
+                      "title": "Wortel & Telur",
+                      "note": "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+                      "area_name": "Dinoyo, Malang",
+                      "meeting_point": "Depan Minimarket Dinoyo",
+                      "latitude": -7.9535,
+                      "longitude": 112.608,
+                      "receive_start": "2026-11-17T16:00:00+07:00",
+                      "receive_end": "2026-11-17T19:00:00+07:00",
+                      "status": "received",
+                      "item_count": 3,
+                      "items": [
+                        {
+                          "id": "6f1c2a9e-3b0d-4f7a-9a51-2d9b8c7e4f10",
+                          "name": "Wortel",
+                          "quantity": 500,
+                          "unit": "gram",
+                          "selected": false,
+                          "unit_price": 0
+                        },
+                        {
+                          "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
+                          "name": "Telur Ayam",
+                          "quantity": 4,
+                          "unit": "butir",
+                          "selected": false,
+                          "unit_price": 0
+                        },
+                        {
+                          "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
+                          "name": "Nasi Putih",
+                          "quantity": 2,
+                          "unit": "porsi",
+                          "selected": false,
+                          "unit_price": 0
+                        }
+                      ],
+                      "requester": {
+                        "id": "a3946688-91fe-4dda-a899-f7204db5a012",
+                        "name": "Budi Santoso",
+                        "area_name": "Dinoyo, Malang",
+                        "whatsapp_number": "+6281358902144",
+                        "whatsapp_url": "https://wa.me/6281358902144"
+                      },
+                      "distance_km": 0.8,
+                      "formatted_distance": "800 m",
+                      "created_at": "2026-11-17T15:00:00+07:00",
+                      "received_at": "2026-11-17T17:05:00+07:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden` — caller is not allowed to perform this action."
+          },
+          "404": {
+            "description": "`not_found` — donation request does not exist."
+          },
+          "409": {
+            "description": "`invalid_state` — request is no longer in a state that allows this action (already taken, expired, received, or cancelled)."
           }
         }
       }
