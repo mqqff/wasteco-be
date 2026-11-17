@@ -95,7 +95,7 @@
           "User Profile"
         ],
         "summary": "Get Profile & Cumulative Contribution Stats",
-        "description": "Retrieve current authenticated user's profile details, default neighborhood location coordinates, and overall cumulative contribution metrics (total portions saved & total money saved).\n\n**Figma Screen Reference**: Screen S04 (Beranda WasteCo / Header Section) & Screen S17 (Profil / Profile Overview Screen).",
+        "description": "Retrieve current authenticated user's profile details, default neighborhood location coordinates, and overall cumulative contribution metrics (total portions saved).\n\n**Figma Screen Reference**: Screen S04 (Beranda WasteCo / Header Section) & Screen S17 (Profil / Profile Overview Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -106,7 +106,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Returns profile details and cumulative savings"
+            "description": "Returns profile details and total portions saved"
           }
         }
       },
@@ -190,7 +190,7 @@
           "Pantry"
         ],
         "summary": "Add Pantry Ingredient",
-        "description": "Add a new food item into the user's pantry inventory. `estimated_price` is the **price per unit** (e.g. Rp2.500 per porsi), used to compute savings as quantity × unit price. `category`, `storage_location`, and `expiry_date` are optional. Status is automatically classified as 'near_expiry' if expiry date is within 3 days.\n\n**Figma Screen Reference**: Screen S05 (Input Bahan Sisa — manual form: name, quantity, unit, unit price).",
+        "description": "Add a new food item into the user's pantry inventory. `category`, `storage_location`, and `expiry_date` are optional. Status is automatically classified as 'near_expiry' if expiry date is within 3 days.\n\n**Figma Screen Reference**: Screen S05 (Input Bahan Sisa — manual form: name, quantity, unit).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -206,8 +206,7 @@
               "example": {
                 "name": "Wortel",
                 "quantity": 100,
-                "unit": "gram",
-                "estimated_price": 30
+                "unit": "gram"
               }
             }
           }
@@ -225,7 +224,7 @@
           "Pantry"
         ],
         "summary": "Bulk Add Pantry Ingredients",
-        "description": "Add several pantry items in one call (1–50 items), typically the reviewed result of `POST /pantry/scan`. Each item follows the same rules as `POST /pantry`; `estimated_price` is the price per unit.\n\n**Figma Screen Reference**: Screen S05B (Cek Hasil Foto — \"Tambahkan 3 Bahan\") → S05C (toast \"3 bahan berhasil ditambahkan\").",
+        "description": "Add several pantry items in one call (1–50 items), typically the reviewed result of `POST /pantry/scan`. Each item follows the same rules as `POST /pantry`.\n\n**Figma Screen Reference**: Screen S05B (Cek Hasil Foto — \"Tambahkan 3 Bahan\") → S05C (toast \"3 bahan berhasil ditambahkan\").",
         "security": [
           {
             "ApiKeyAuth": []
@@ -243,20 +242,17 @@
                   {
                     "name": "Bayam",
                     "quantity": 1,
-                    "unit": "ikat",
-                    "estimated_price": 3000
+                    "unit": "ikat"
                   },
                   {
                     "name": "Tomat",
                     "quantity": 2,
-                    "unit": "buah",
-                    "estimated_price": 1000
+                    "unit": "buah"
                   },
                   {
                     "name": "Bawang Putih",
                     "quantity": 4,
-                    "unit": "siung",
-                    "estimated_price": 500
+                    "unit": "siung"
                   }
                 ]
               }
@@ -279,7 +275,7 @@
           "Pantry"
         ],
         "summary": "Detect Ingredients from Photo (Gemini Vision)",
-        "description": "Upload a photo of leftover ingredients; Gemini AI detects each ingredient with an estimated quantity, unit, and unit price (Rp). **Nothing is saved** — the client shows the result for review/editing, then saves it with `POST /pantry/bulk`.\n\nAccepted: JPEG, PNG, WebP (detected from file content), max 4 MB request body.\n\n**Figma Screen Reference**: Screen S05A (Foto Bahan Sisa) → S05B (Cek Hasil Foto).",
+        "description": "Upload a photo of leftover ingredients; Gemini AI detects each ingredient with an estimated quantity and unit. **Nothing is saved** — the client shows the result for review/editing, then saves it with `POST /pantry/bulk`.\n\nAccepted: JPEG, PNG, WebP (detected from file content), max 4 MB request body.\n\n**Figma Screen Reference**: Screen S05A (Foto Bahan Sisa) → S05B (Cek Hasil Foto).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -319,20 +315,17 @@
                       {
                         "name": "Bayam",
                         "quantity": 1,
-                        "unit": "ikat",
-                        "unit_price": 3000
+                        "unit": "ikat"
                       },
                       {
                         "name": "Tomat",
                         "quantity": 2,
-                        "unit": "buah",
-                        "unit_price": 1000
+                        "unit": "buah"
                       },
                       {
                         "name": "Bawang Putih",
                         "quantity": 4,
-                        "unit": "siung",
-                        "unit_price": 500
+                        "unit": "siung"
                       }
                     ],
                     "total": 3
@@ -356,7 +349,7 @@
           "Pantry"
         ],
         "summary": "Update Pantry Ingredient",
-        "description": "Update item quantity, storage location, expiry date, estimated price, or status (fresh, near_expiry, used, donated).\n\n**Figma Screen Reference**: Screen S04 / S05 (Edit Bahan Dapur / Edit Pantry Item Screen).",
+        "description": "Update item quantity, storage location, expiry date, or status (fresh, near_expiry, used, donated).\n\n**Figma Screen Reference**: Screen S04 / S05 (Edit Bahan Dapur / Edit Pantry Item Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -387,8 +380,7 @@
                 "category": "Sayuran",
                 "storage_location": "Kulkas bagian bawah",
                 "expiry_date": "2026-11-15",
-                "status": "near_expiry",
-                "estimated_price": 4000
+                "status": "near_expiry"
               }
             }
           }
@@ -437,7 +429,7 @@
           "Recipes & AI"
         ],
         "summary": "Generate Zero-Waste Recipes (Gemini AI)",
-        "description": "Send selected pantry ingredient IDs or custom ingredient names to the Gemini AI engine (gemini-flash-lite-latest). Gemini returns ranked Indonesian home-cooking recipes with match percentages, cooking time, portions, estimated savings (Rp), available ingredients, additional ingredients, step-by-step instructions, and smart kitchen tips.\n\n**Figma Screen Reference**: Screen S05 (Pilih Bahan & Cari Resep), Screen S06 (Rekomendasi Resep AI), & Screen S07 (Detail Resep Masak).",
+        "description": "Send selected pantry ingredient IDs or custom ingredient names to the Gemini AI engine (gemini-flash-lite-latest). Gemini returns ranked Indonesian home-cooking recipes with match percentages, cooking time, portions, available ingredients, additional ingredients, step-by-step instructions, and smart kitchen tips.\n\n**Figma Screen Reference**: Screen S05 (Pilih Bahan & Cari Resep), Screen S06 (Rekomendasi Resep AI), & Screen S07 (Detail Resep Masak).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -475,7 +467,7 @@
           "Recipes & AI"
         ],
         "summary": "Confirm Cooking & Auto-Deduct Pantry",
-        "description": "Confirms recipe preparation completion. Automatically subtracts used ingredient quantities from the pantry (or updates status to 'used' if fully depleted), and automatically logs the food rescue activity into the impact ledger with portions saved, estimated cost savings, and CO2e prevented.\n\n**Figma Screen Reference**: Screen S08 (Konfirmasi Selesai Memasak / Cooking Confirmation Screen).\n\n**Savings calculation**: money saved = Σ quantity × unit price. For items with an `ingredient_id` owned by the user, the unit price is taken from the pantry item (`estimated_price`); otherwise from the request's `estimated_price` (per unit). Client-sent totals are not accepted.",
+        "description": "Confirms recipe preparation completion. Automatically subtracts used ingredient quantities from the pantry (or updates status to 'used' if fully depleted), and automatically logs the food rescue activity into the impact ledger with portions saved and CO2e prevented.\n\n**Figma Screen Reference**: Screen S08 (Konfirmasi Selesai Memasak / Cooking Confirmation Screen).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -501,8 +493,7 @@
                   {
                     "name": "Telur Ayam",
                     "quantity": 2,
-                    "unit": "butir",
-                    "estimated_price": 2000
+                    "unit": "butir"
                   }
                 ]
               }
@@ -591,24 +582,21 @@
                             "name": "Wortel",
                             "quantity": 500,
                             "unit": "gram",
-                            "selected": false,
-                            "unit_price": 0
+                            "selected": false
                           },
                           {
                             "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
                             "name": "Telur Ayam",
                             "quantity": 4,
                             "unit": "butir",
-                            "selected": false,
-                            "unit_price": 0
+                            "selected": false
                           },
                           {
                             "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
                             "name": "Nasi Putih",
                             "quantity": 2,
                             "unit": "porsi",
-                            "selected": false,
-                            "unit_price": 0
+                            "selected": false
                           }
                         ],
                         "distance_km": 0.8,
@@ -702,24 +690,21 @@
                           "name": "Wortel",
                           "quantity": 500,
                           "unit": "gram",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         },
                         {
                           "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
                           "name": "Telur Ayam",
                           "quantity": 4,
                           "unit": "butir",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         },
                         {
                           "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
                           "name": "Nasi Putih",
                           "quantity": 2,
                           "unit": "porsi",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         }
                       ],
                       "requester": {
@@ -785,24 +770,21 @@
                             "name": "Wortel",
                             "quantity": 500,
                             "unit": "gram",
-                            "selected": false,
-                            "unit_price": 0
+                            "selected": false
                           },
                           {
                             "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
                             "name": "Telur Ayam",
                             "quantity": 4,
                             "unit": "butir",
-                            "selected": false,
-                            "unit_price": 0
+                            "selected": false
                           },
                           {
                             "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
                             "name": "Nasi Putih",
                             "quantity": 2,
                             "unit": "porsi",
-                            "selected": false,
-                            "unit_price": 0
+                            "selected": false
                           }
                         ],
                         "requester": {
@@ -900,24 +882,21 @@
                           "name": "Wortel",
                           "quantity": 500,
                           "unit": "gram",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         },
                         {
                           "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
                           "name": "Telur Ayam",
                           "quantity": 4,
                           "unit": "butir",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         },
                         {
                           "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
                           "name": "Nasi Putih",
                           "quantity": 2,
                           "unit": "porsi",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         }
                       ],
                       "requester": {
@@ -998,7 +977,7 @@
           "Donations"
         ],
         "summary": "Fulfil Donation Request (Donor)",
-        "description": "A donor commits to hand over some or all requested items. Only **one donor** per request: the first successful call moves it to `handed_over`; later calls get `409`. Each selected item is matched by name to the donor's pantry; the matched pantry unit price is stored for impact calculation (unmatched items count as Rp0). The donor must have a WhatsApp number in their profile.\n\n**Figma Screen Reference**: S11 (Pilih Bahan yang Diserahkan) → S11A (Bahan Siap Diserahkan).",
+        "description": "A donor commits to hand over some or all requested items. Only **one donor** per request: the first successful call moves it to `handed_over`; later calls get `409`. Each selected item is matched by name to the donor's pantry so that stock can be reduced on receipt. The donor must have a WhatsApp number in their profile.\n\n**Figma Screen Reference**: S11 (Pilih Bahan yang Diserahkan) → S11A (Bahan Siap Diserahkan).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1057,8 +1036,7 @@
                           "name": "Wortel",
                           "quantity": 500,
                           "unit": "gram",
-                          "selected": true,
-                          "unit_price": 30
+                          "selected": true
                         }
                       ],
                       "requester": {
@@ -1098,7 +1076,7 @@
           "Donations"
         ],
         "summary": "Confirm Receipt (Requester)",
-        "description": "Requester confirms the items were received. Status becomes `received`, the donor's pantry stock is reduced (status `donated` when empty), and a `donation` impact activity is logged **for the donor**: portions = number of handed-over items, money saved = Σ quantity × unit price.\n\n**Figma Screen Reference**: S14 (Konfirmasi Penerimaan) → donor's S15B (Statistik Setelah Donasi).",
+        "description": "Requester confirms the items were received. Status becomes `received`, the donor's pantry stock is reduced (status `donated` when empty), and a `donation` impact activity is logged **for the donor**: portions = number of handed-over items.\n\n**Figma Screen Reference**: S14 (Konfirmasi Penerimaan) → donor's S15B (Statistik Setelah Donasi).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1144,24 +1122,21 @@
                           "name": "Wortel",
                           "quantity": 500,
                           "unit": "gram",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         },
                         {
                           "id": "0c9e4d21-7b3a-4e8f-a6c5-3d2b1f0e9a87",
                           "name": "Telur Ayam",
                           "quantity": 4,
                           "unit": "butir",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         },
                         {
                           "id": "7a2b8c3d-1e4f-4a5b-9c6d-8e7f6a5b4c32",
                           "name": "Nasi Putih",
                           "quantity": 2,
                           "unit": "porsi",
-                          "selected": false,
-                          "unit_price": 0
+                          "selected": false
                         }
                       ],
                       "requester": {
@@ -1198,8 +1173,8 @@
         "tags": [
           "Impact & Analytics"
         ],
-        "summary": "Monthly Savings & Portions Summary",
-        "description": "Retrieve monthly aggregated metrics: total portions saved, total estimated money saved (Rp), total CO2e prevented (kg), composition breakdown (portions, savings, and percentage for Home-Cooked vs Donated-to-Neighbors), and top 3 recent activities.\n\n**Figma Screen Reference**: Screen S04 (Beranda / Dampak Bulan Ini), Screen S15 (Layar Dampak / Impact Dashboard Screen), & Screen S15B (Dampak Setelah Berbagi Toast).",
+        "summary": "Monthly Portions Summary",
+        "description": "Retrieve monthly aggregated metrics: total portions saved, total CO2e prevented (kg), composition breakdown (portions and percentage by portions for Home-Cooked vs Donated-to-Neighbors), and top 3 recent activities.\n\n**Figma Screen Reference**: Screen S04 (Beranda / Dampak Bulan Ini), Screen S15 (Layar Dampak / Impact Dashboard Screen), & Screen S15B (Dampak Setelah Berbagi Toast).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1283,7 +1258,7 @@
           "Impact & Analytics"
         ],
         "summary": "Get Impact Activity Detail Breakdown",
-        "description": "Retrieve complete details for a specific food rescue activity: individual item breakdown, consumed quantities, estimated market prices, and CO2e emission reductions.\n\n**Figma Screen Reference**: Screen S16 (Detail Riwayat Dampak / Impact Breakdown Screen).",
+        "description": "Retrieve complete details for a specific food rescue activity: individual item breakdown (name, quantity, unit) and CO2e emission reductions.\n\n**Figma Screen Reference**: Screen S16 (Detail Riwayat Dampak / Impact Breakdown Screen).",
         "security": [
           {
             "ApiKeyAuth": []
