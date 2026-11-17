@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"mime/multipart"
+	"errors"
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
@@ -23,149 +23,20 @@ func NewDonationHandler(r fiber.Router, m middlewares.MiddlewareItf, u usecase.D
 		validator:       v,
 	}
 
-	donations := r.Group("/donations")
-	donations.Get("/", handler.GetAvailableDonations)
-	donations.Get("/my", m.RequireAuth, handler.GetMyDonations)
-	donations.Get("/:id", handler.GetDonationDetail)
-	donations.Post("/", m.RequireAuth, handler.CreateDonation)
-	donations.Patch("/:id/status", m.RequireAuth, handler.UpdateStatus)
-	donations.Post("/:id/confirm-handed", m.RequireAuth, handler.ConfirmHandedOver)
-	donations.Delete("/:id", m.RequireAuth, handler.CancelDonation)
+	donations := r.Group("/donations", m.RequireAuth)
+	donations.Get("/", handler.GetNearbyRequests)
+	donations.Get("/my", handler.GetMyRequests)
+	donations.Get("/:id", handler.GetRequestDetail)
+	donations.Post("/", handler.CreateRequest)
+	donations.Post("/:id/fulfill", handler.Fulfill)
+	donations.Post("/:id/confirm-received", handler.ConfirmReceived)
+	donations.Delete("/:id", handler.Cancel)
 }
 
-func (h *DonationHandler) CreateDonation(c fiber.Ctx) error {
+func (h *DonationHandler) CreateRequest(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
 
 	req := dto.CreateDonationRequest{}
-	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "bad_request",
-			"error":      err.Error(),
-			"message":    "Invalid form data",
-		})
-	}
-
-	if err := h.validator.Struct(req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "validation_error",
-			"error":      err.Error(),
-			"message":    "Validation failed",
-		})
-	}
-
-	var files []*multipart.FileHeader
-	form, err := c.MultipartForm()
-	if err == nil && form != nil {
-		files = form.File["photos"]
-		if len(files) == 0 {
-			files = form.File["image"]
-		}
-	}
-
-	res, err := h.donationUsecase.CreateDonation(userID, req, files)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error_code": "internal_server_error",
-			"error":      err.Error(),
-			"message":    "Failed to create donation",
-		})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"payload": fiber.Map{
-			"donation": res,
-		},
-	})
-}
-
-func (h *DonationHandler) GetAvailableDonations(c fiber.Ctx) error {
-	category := c.Query("category")
-	search := c.Query("search")
-
-	userLat, _ := strconv.ParseFloat(c.Query("lat"), 64)
-	userLong, _ := strconv.ParseFloat(c.Query("long"), 64)
-	radiusKM, _ := strconv.ParseFloat(c.Query("radius"), 64)
-	if radiusKM == 0 {
-		radiusKM = 5.0
-	}
-
-	donations, err := h.donationUsecase.GetAvailableDonations(category, search, userLat, userLong, radiusKM)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error_code": "internal_server_error",
-			"error":      err.Error(),
-			"message":    "Failed to retrieve donations",
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"payload": fiber.Map{
-			"donations": donations,
-			"total":     len(donations),
-		},
-	})
-}
-
-func (h *DonationHandler) GetDonationDetail(c fiber.Ctx) error {
-	idStr := c.Params("id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "bad_request",
-			"error":      "invalid donation id",
-			"message":    "Please provide a valid donation ID",
-		})
-	}
-
-	userLat, _ := strconv.ParseFloat(c.Query("lat"), 64)
-	userLong, _ := strconv.ParseFloat(c.Query("long"), 64)
-
-	res, err := h.donationUsecase.GetDonationDetail(id, userLat, userLong)
-	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error_code": "not_found",
-			"error":      "donation not found",
-			"message":    "Donation not found",
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"payload": fiber.Map{
-			"donation": res,
-		},
-	})
-}
-
-func (h *DonationHandler) GetMyDonations(c fiber.Ctx) error {
-	userID := c.Locals("userID").(uuid.UUID)
-
-	res, err := h.donationUsecase.GetMyDonations(userID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error_code": "internal_server_error",
-			"error":      err.Error(),
-			"message":    "Failed to retrieve user donations",
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"payload": res,
-	})
-}
-
-func (h *DonationHandler) UpdateStatus(c fiber.Ctx) error {
-	userID := c.Locals("userID").(uuid.UUID)
-	idStr := c.Params("id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "bad_request",
-			"error":      "invalid donation id",
-			"message":    "Please provide a valid donation ID",
-		})
-	}
-
-	req := dto.UpdateDonationStatusRequest{}
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error_code": "bad_request",
@@ -182,20 +53,50 @@ func (h *DonationHandler) UpdateStatus(c fiber.Ctx) error {
 		})
 	}
 
-	res, err := h.donationUsecase.UpdateStatus(userID, id, req.Status)
+	res, err := h.donationUsecase.CreateRequest(userID, req)
 	if err != nil {
-		if err.Error() == "unauthorized" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error_code": "forbidden",
-				"error":      "forbidden",
-				"message":    "You cannot edit this donation",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error_code": "internal_server_error",
-			"error":      err.Error(),
-			"message":    "Failed to update donation status",
-		})
+		return usecaseError(c, err, "Failed to create donation request")
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"payload": fiber.Map{
+			"donation": res,
+		},
+	})
+}
+
+func (h *DonationHandler) GetNearbyRequests(c fiber.Ctx) error {
+	userID := c.Locals("userID").(uuid.UUID)
+	userLat, _ := strconv.ParseFloat(c.Query("lat"), 64)
+	userLong, _ := strconv.ParseFloat(c.Query("long"), 64)
+	radiusKM, _ := strconv.ParseFloat(c.Query("radius"), 64)
+
+	donations, err := h.donationUsecase.GetNearbyRequests(userID, c.Query("search"), userLat, userLong, radiusKM)
+	if err != nil {
+		return usecaseError(c, err, "Failed to retrieve donation requests")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"payload": fiber.Map{
+			"donations": donations,
+			"total":     len(donations),
+		},
+	})
+}
+
+func (h *DonationHandler) GetRequestDetail(c fiber.Ctx) error {
+	userID := c.Locals("userID").(uuid.UUID)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return invalidIDError(c)
+	}
+
+	userLat, _ := strconv.ParseFloat(c.Query("lat"), 64)
+	userLong, _ := strconv.ParseFloat(c.Query("long"), 64)
+
+	res, err := h.donationUsecase.GetRequestDetail(userID, id, userLat, userLong)
+	if err != nil {
+		return usecaseError(c, err, "Failed to retrieve donation request")
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -205,67 +106,119 @@ func (h *DonationHandler) UpdateStatus(c fiber.Ctx) error {
 	})
 }
 
-func (h *DonationHandler) ConfirmHandedOver(c fiber.Ctx) error {
+func (h *DonationHandler) GetMyRequests(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
-	idStr := c.Params("id")
-	id, err := uuid.Parse(idStr)
+
+	res, err := h.donationUsecase.GetMyRequests(userID)
 	if err != nil {
+		return usecaseError(c, err, "Failed to retrieve your donation requests")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"payload": res,
+	})
+}
+
+func (h *DonationHandler) Fulfill(c fiber.Ctx) error {
+	userID := c.Locals("userID").(uuid.UUID)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return invalidIDError(c)
+	}
+
+	req := dto.FulfillDonationRequest{}
+	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error_code": "bad_request",
-			"error":      "invalid donation id",
-			"message":    "Please provide a valid donation ID",
+			"error":      err.Error(),
+			"message":    "Invalid request body",
 		})
 	}
 
-	res, err := h.donationUsecase.ConfirmHandedOver(userID, id)
-	if err != nil {
-		if err.Error() == "unauthorized" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error_code": "forbidden",
-				"error":      "forbidden",
-				"message":    "You cannot confirm this donation",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error_code": "internal_server_error",
+	if err := h.validator.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "validation_error",
 			"error":      err.Error(),
-			"message":    "Failed to confirm donation handover",
+			"message":    "Validation failed",
 		})
+	}
+
+	res, err := h.donationUsecase.Fulfill(userID, id, req)
+	if err != nil {
+		return usecaseError(c, err, "Failed to fulfill donation request")
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"payload": fiber.Map{
-			"confirmed": true,
-			"donation":  res,
-			"message":   "Donation successfully handed over and impact recorded!",
+			"donation": res,
 		},
 	})
 }
 
-func (h *DonationHandler) CancelDonation(c fiber.Ctx) error {
+func (h *DonationHandler) ConfirmReceived(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
-	idStr := c.Params("id")
-	id, err := uuid.Parse(idStr)
+	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "bad_request",
-			"error":      "invalid donation id",
-			"message":    "Please provide a valid donation ID",
-		})
+		return invalidIDError(c)
 	}
 
-	err = h.donationUsecase.CancelDonation(userID, id)
+	res, err := h.donationUsecase.ConfirmReceived(userID, id)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error_code": "internal_server_error",
-			"error":      err.Error(),
-			"message":    "Failed to cancel donation",
-		})
+		return usecaseError(c, err, "Failed to confirm donation receipt")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"payload": fiber.Map{
+			"donation": res,
+		},
+	})
+}
+
+func (h *DonationHandler) Cancel(c fiber.Ctx) error {
+	userID := c.Locals("userID").(uuid.UUID)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return invalidIDError(c)
+	}
+
+	if err := h.donationUsecase.Cancel(userID, id); err != nil {
+		return usecaseError(c, err, "Failed to cancel donation request")
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"payload": fiber.Map{
 			"cancelled": true,
 		},
+	})
+}
+
+func invalidIDError(c fiber.Ctx) error {
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		"error_code": "bad_request",
+		"error":      "invalid donation request id",
+		"message":    "Please provide a valid donation request ID",
+	})
+}
+
+func usecaseError(c fiber.Ctx, err error, message string) error {
+	status, code := fiber.StatusInternalServerError, "internal_server_error"
+
+	switch {
+	case errors.Is(err, usecase.ErrNotFound):
+		status, code, message = fiber.StatusNotFound, "not_found", "Donation request not found"
+	case errors.Is(err, usecase.ErrForbidden):
+		status, code, message = fiber.StatusForbidden, "forbidden", "You are not allowed to perform this action"
+	case errors.Is(err, usecase.ErrInvalidState):
+		status, code, message = fiber.StatusConflict, "invalid_state", "This donation request can no longer be updated"
+	case errors.Is(err, usecase.ErrPhoneRequired):
+		status, code, message = fiber.StatusBadRequest, "phone_number_required", "Please add your WhatsApp number in your profile first"
+	case errors.Is(err, usecase.ErrInvalidItems):
+		status, code, message = fiber.StatusBadRequest, "validation_error", "Selected items do not belong to this request"
+	}
+
+	return c.Status(status).JSON(fiber.Map{
+		"error_code": code,
+		"error":      err.Error(),
+		"message":    message,
 	})
 }

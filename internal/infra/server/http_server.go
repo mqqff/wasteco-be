@@ -25,7 +25,6 @@ import (
 	UserUsecase "github.com/mqqff/wasteco-be/internal/app/user/usecase"
 	"github.com/mqqff/wasteco-be/internal/domain/env"
 	"github.com/mqqff/wasteco-be/internal/infra/gemini"
-	"github.com/mqqff/wasteco-be/pkg/supabase"
 	"github.com/mqqff/wasteco-be/internal/middlewares"
 	"github.com/mqqff/wasteco-be/pkg/jwt"
 	"github.com/mqqff/wasteco-be/pkg/log"
@@ -95,7 +94,6 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	jwt := jwt.JWT
 	validator := validator.New()
 	geminiAI := gemini.Gemini
-	supabaseStorage := supabase.Supabase
 
 	middleware := middlewares.NewMiddleware(jwt)
 
@@ -108,7 +106,7 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	userUsecase := UserUsecase.NewUserUsecase(userRepo)
 	pantryUsecase := PantryUsecase.NewPantryUsecase(pantryRepo, geminiAI)
 	recipeUsecase := RecipeUsecase.NewRecipeUsecase(pantryRepo, impactRepo, geminiAI)
-	donationUsecase := DonationUsecase.NewDonationUsecase(donationRepo, impactRepo, supabaseStorage)
+	donationUsecase := DonationUsecase.NewDonationUsecase(donationRepo, pantryRepo, userRepo)
 	impactUsecase := ImpactUsecase.NewImpactUsecase(impactRepo)
 
 	AuthHandler.NewAuthHandler(v1, authUsecase, validator)

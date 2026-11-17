@@ -21,7 +21,9 @@ func main() {
 		log.Info(nil, "[Migration][main] dropping existing tables...")
 		err = db.Migrator().DropTable(
 			&entity.ImpactActivity{},
-			&entity.Donation{},
+			&entity.DonationRequestItem{},
+			&entity.DonationRequest{},
+			"donations",
 			&entity.PantryIngredient{},
 			&entity.User{},
 		)
@@ -37,7 +39,8 @@ func main() {
 	err = db.AutoMigrate(
 		&entity.User{},
 		&entity.PantryIngredient{},
-		&entity.Donation{},
+		&entity.DonationRequest{},
+		&entity.DonationRequestItem{},
 		&entity.ImpactActivity{},
 	)
 	if err != nil {

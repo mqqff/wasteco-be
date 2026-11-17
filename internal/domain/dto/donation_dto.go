@@ -1,58 +1,66 @@
 package dto
 
+import "time"
+
+type DonationItemInput struct {
+	Name     string  `json:"name" validate:"required,min=2,max=150"`
+	Quantity float64 `json:"quantity" validate:"required,gt=0"`
+	Unit     string  `json:"unit" validate:"required,max=50"`
+}
+
 type CreateDonationRequest struct {
-	Title             string  `form:"title" json:"title" validate:"required,min=3,max=150"`
-	Category          string  `form:"category" json:"category" validate:"required"`
-	Quantity          float64 `form:"quantity" json:"quantity" validate:"required,gt=0"`
-	Unit              string  `form:"unit" json:"unit" validate:"required"`
-	ConditionNote     string  `form:"condition_note" json:"condition_note" validate:"required"`
-	StorageMethod     string  `form:"storage_method" json:"storage_method"`
-	ExpiryDate        *string `form:"expiry_date" json:"expiry_date"`
-	PickupDeadline    string  `form:"pickup_deadline" json:"pickup_deadline" validate:"required"`
-	AreaName          string  `form:"area_name" json:"area_name" validate:"required"`
-	MeetingPoint      string  `form:"meeting_point" json:"meeting_point" validate:"required"`
-	Latitude          float64 `form:"latitude" json:"latitude"`
-	Longitude         float64 `form:"longitude" json:"longitude"`
-	WhatsAppNumber    string  `form:"whatsapp_number" json:"whatsapp_number" validate:"required"`
-	EstimatedPrice    float64 `form:"estimated_price" json:"estimated_price"`
-	EstimatedPortions int     `form:"estimated_portions" json:"estimated_portions"`
+	Title        string              `json:"title" validate:"omitempty,max=150"`
+	Note         string              `json:"note" validate:"omitempty,max=500"`
+	Items        []DonationItemInput `json:"items" validate:"required,min=1,max=20,dive"`
+	AreaName     string              `json:"area_name" validate:"omitempty,max=150"`
+	MeetingPoint string              `json:"meeting_point" validate:"required,max=255"`
+	Latitude     float64             `json:"latitude" validate:"required,latitude"`
+	Longitude    float64             `json:"longitude" validate:"required,longitude"`
+	ReceiveStart time.Time           `json:"receive_start" validate:"required"`
+	ReceiveEnd   time.Time           `json:"receive_end" validate:"required,gtfield=ReceiveStart,gt"`
 }
 
-type UpdateDonationStatusRequest struct {
-	Status string `json:"status" validate:"required,oneof=available in_progress completed cancelled"`
+type FulfillDonationRequest struct {
+	ItemIDs []string `json:"item_ids" validate:"required,min=1,dive,uuid"`
 }
 
-type DonorInfo struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	AreaName    string `json:"area_name"`
-	PhoneNumber string `json:"phone_number"`
+type DonationUser struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	AreaName       string `json:"area_name"`
+	WhatsAppNumber string `json:"whatsapp_number,omitempty"`
+	WhatsAppURL    string `json:"whatsapp_url,omitempty"`
+}
+
+type DonationItemResponse struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Quantity  float64 `json:"quantity"`
+	Unit      string  `json:"unit"`
+	Selected  bool    `json:"selected"`
+	UnitPrice float64 `json:"unit_price"`
 }
 
 type DonationResponse struct {
-	ID                string     `json:"id"`
-	UserID            string     `json:"user_id"`
-	Donor             *DonorInfo `json:"donor,omitempty"`
-	Title             string     `json:"title"`
-	Category          string     `json:"category"`
-	Quantity          float64    `json:"quantity"`
-	Unit              string     `json:"unit"`
-	PhotoURLs         []string   `json:"photo_urls"`
-	ConditionNote     string     `json:"condition_note"`
-	StorageMethod     string     `json:"storage_method"`
-	ExpiryDate        string     `json:"expiry_date,omitempty"`
-	PickupDeadline    string     `json:"pickup_deadline"`
-	AreaName          string     `json:"area_name"`
-	MeetingPoint      string     `json:"meeting_point"`
-	Latitude          float64    `json:"latitude"`
-	Longitude         float64    `json:"longitude"`
-	WhatsAppNumber    string     `json:"whatsapp_number"`
-	EstimatedPrice    float64    `json:"estimated_price"`
-	EstimatedPortions int        `json:"estimated_portions"`
-	Status            string     `json:"status"`
-	DistanceKM        *float64   `json:"distance_km,omitempty"`
-	FormattedDistance string     `json:"formatted_distance,omitempty"`
-	CreatedAt         string     `json:"created_at"`
+	ID                string                 `json:"id"`
+	Title             string                 `json:"title"`
+	Note              string                 `json:"note"`
+	AreaName          string                 `json:"area_name"`
+	MeetingPoint      string                 `json:"meeting_point"`
+	Latitude          float64                `json:"latitude"`
+	Longitude         float64                `json:"longitude"`
+	ReceiveStart      string                 `json:"receive_start"`
+	ReceiveEnd        string                 `json:"receive_end"`
+	Status            string                 `json:"status"`
+	ItemCount         int                    `json:"item_count"`
+	Items             []DonationItemResponse `json:"items"`
+	Requester         *DonationUser          `json:"requester,omitempty"`
+	Donor             *DonationUser          `json:"donor,omitempty"`
+	DistanceKM        *float64               `json:"distance_km,omitempty"`
+	FormattedDistance string                 `json:"formatted_distance,omitempty"`
+	HandedOverAt      string                 `json:"handed_over_at,omitempty"`
+	ReceivedAt        string                 `json:"received_at,omitempty"`
+	CreatedAt         string                 `json:"created_at"`
 }
 
 type MyDonationsResponse struct {

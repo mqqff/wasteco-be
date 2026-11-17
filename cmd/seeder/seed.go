@@ -139,57 +139,68 @@ func main() {
 		}
 	}
 
-	today18 := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, time.Local)
-	tomorrow12 := today18.Add(24 * time.Hour)
+	receiveStart := now.Truncate(time.Hour).Add(time.Hour)
+	receiveEnd := receiveStart.Add(3 * time.Hour)
 
-	donations := []entity.Donation{
+	requests := []entity.DonationRequest{
 		{
-			ID:                uuid.New(),
-			UserID:            budiID,
-			Title:             "Wortel Segar Kebun",
-			Category:          "Sayuran",
-			Quantity:          500,
-			Unit:              "gram",
-			PhotoURLs:         `["https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=500"]`,
-			ConditionNote:     "Sudah dicuci bersih, kulit masih renyah dan tidak lembek. Disimpan di chiller kulkas dalam wadah tertutup.",
-			StorageMethod:     "Chiller kulkas wadah tertutup",
-			PickupDeadline:    &today18,
-			AreaName:          "Dinoyo, Malang",
-			MeetingPoint:      "Depan minimarket Alfamart MT Haryono / Gerbang Kos Hijau",
-			Latitude:          -7.9535,
-			Longitude:         112.6080,
-			WhatsAppNumber:    "+6281358902144",
-			EstimatedPrice:    10000,
-			EstimatedPortions: 2,
-			Status:            "available",
+			ID:           uuid.New(),
+			RequesterID:  budiID,
+			Title:        "Wortel & Telur",
+			Note:         "Untuk masak makan malam keluarga. Bantu sebagian item juga boleh.",
+			AreaName:     "Dinoyo, Malang",
+			MeetingPoint: "Depan Minimarket Dinoyo",
+			Latitude:     -7.9535,
+			Longitude:    112.6080,
+			ReceiveStart: receiveStart,
+			ReceiveEnd:   receiveEnd,
+			Status:       "open",
+			Items: []entity.DonationRequestItem{
+				{ID: uuid.New(), Name: "Wortel", Quantity: 500, Unit: "gram"},
+				{ID: uuid.New(), Name: "Telur Ayam", Quantity: 4, Unit: "butir"},
+				{ID: uuid.New(), Name: "Nasi Putih", Quantity: 2, Unit: "porsi"},
+			},
 		},
 		{
-			ID:                uuid.New(),
-			UserID:            sitiID,
-			Title:             "Kentang Dieng",
-			Category:          "Bahan Pokok",
-			Quantity:          1000,
-			Unit:              "gram",
-			PhotoURLs:         `["https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=500"]`,
-			ConditionNote:     "Kondisi mulus, tidak bertunas, kering dan bersih.",
-			StorageMethod:     "Tempat kering sejuk",
-			PickupDeadline:    &tomorrow12,
-			AreaName:          "Dinoyo, Malang",
-			MeetingPoint:      "Teras rumah dekat Masjid Dinoyo",
-			Latitude:          -7.9500,
-			Longitude:         112.6050,
-			WhatsAppNumber:    "+6285712345678",
-			EstimatedPrice:    15000,
-			EstimatedPortions: 3,
-			Status:            "available",
+			ID:           uuid.New(),
+			RequesterID:  sitiID,
+			Title:        "Kentang",
+			Note:         "Mau bikin perkedel untuk bekal anak.",
+			AreaName:     "Dinoyo, Malang",
+			MeetingPoint: "Teras rumah dekat Masjid Dinoyo",
+			Latitude:     -7.9500,
+			Longitude:    112.6050,
+			ReceiveStart: receiveStart,
+			ReceiveEnd:   receiveEnd,
+			Status:       "open",
+			Items: []entity.DonationRequestItem{
+				{ID: uuid.New(), Name: "Kentang", Quantity: 1, Unit: "kg"},
+			},
+		},
+		{
+			ID:           uuid.New(),
+			RequesterID:  budiID,
+			Title:        "Tomat & Bumbu",
+			AreaName:     "Dinoyo, Malang",
+			MeetingPoint: "Gerbang Kos Hijau Jl. MT Haryono",
+			Latitude:     -7.9560,
+			Longitude:    112.6110,
+			ReceiveStart: receiveStart,
+			ReceiveEnd:   receiveEnd,
+			Status:       "open",
+			Items: []entity.DonationRequestItem{
+				{ID: uuid.New(), Name: "Tomat", Quantity: 3, Unit: "buah"},
+				{ID: uuid.New(), Name: "Bawang Merah", Quantity: 100, Unit: "gram"},
+				{ID: uuid.New(), Name: "Cabai Rawit", Quantity: 50, Unit: "gram"},
+			},
 		},
 	}
 
-	for _, d := range donations {
+	for _, r := range requests {
 		var count int64
-		db.Model(&entity.Donation{}).Where("title = ?", d.Title).Count(&count)
+		db.Model(&entity.DonationRequest{}).Where("requester_id = ? AND title = ?", r.RequesterID, r.Title).Count(&count)
 		if count == 0 {
-			db.Create(&d)
+			db.Create(&r)
 		}
 	}
 
