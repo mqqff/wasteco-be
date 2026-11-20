@@ -55,11 +55,17 @@ type fakeGemini struct {
 	gemini.GeminiItf
 	lastIngredients []gemini.IngredientInput
 	recipes         []gemini.GeneratedRecipe
+	imageResult     gemini.ImageRecipeResponse
 }
 
 func (f *fakeGemini) GenerateRecipes(ingredients []gemini.IngredientInput) ([]gemini.GeneratedRecipe, error) {
 	f.lastIngredients = ingredients
 	return f.recipes, nil
+}
+
+func (f *fakeGemini) GenerateRecipesFromImage(_ []byte, _ string, extra []gemini.IngredientInput) (gemini.ImageRecipeResponse, error) {
+	f.lastIngredients = extra
+	return f.imageResult, nil
 }
 
 func TestConfirmCookDeductsPantryAndLogsPortions(t *testing.T) {
@@ -164,5 +170,29 @@ func TestGenerateRecipesActiveFilterAndEmptyError(t *testing.T) {
 	}
 	if len(recipes) != 1 || len(ai.lastIngredients) != 2 {
 		t.Fatalf("recipes=%d ingredients=%d, want 1 and 2", len(recipes), len(ai.lastIngredients))
+	}
+}
+
+func TestGenerateRecipesFromImage(t *testing.T) {
+	userID := uuid.New()
+	ai := &fakeGemini{}
+	u := NewRecipeUsecase(&fakePantryRepo{}, &fakeImpactRepo{}, ai)
+
+	if _, err := u.GenerateRecipesFromImage(userID, []byte("img"), "image/jpeg", dto.GenerateRecipeRequest{}); !errors.Is(err, ErrNoIngredients) {
+		t.Fatalf("empty detection: err = %v, want ErrNoIngredients", err)
+	}
+
+	ai.imageResult = gemini.ImageRecipeResponse{
+		DetectedIngredients: []gemini.DetectedIngredient{{Name: "Tomat", Quantity: 3, Unit: "buah"}},
+		Recipes:             []gemini.GeneratedRecipe{{RecipeName: "Sambal Tomat", MatchPercentage: 90}},
+	}
+	res, err := u.GenerateRecipesFromImage(userID, []byte("img"), "image/jpeg", dto.GenerateRecipeRequest{
+		CustomIngredients: []string{"Cabai"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.DetectedIngredients) != 1 || len(res.Recipes) != 1 || len(ai.lastIngredients) != 1 {
+		t.Fatalf("unexpected image result: %+v, extra=%+v", res, ai.lastIngredients)
 	}
 }

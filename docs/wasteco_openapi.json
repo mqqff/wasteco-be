@@ -7,6 +7,10 @@
   },
   "servers": [
     {
+      "url": "https://wastecobe.mhqif.my.id",
+      "description": "Production Server"
+    },
+    {
       "url": "http://127.0.0.1:8000",
       "description": "Local Development Server"
     }
@@ -429,7 +433,7 @@
           "Recipes & AI"
         ],
         "summary": "Generate Zero-Waste Recipes (Gemini AI)",
-        "description": "Send selected pantry ingredient IDs or custom ingredient names to the Gemini AI engine (gemini-flash-lite-latest). Gemini returns ranked Indonesian home-cooking recipes with match percentages, cooking time, portions, available ingredients, additional ingredients, step-by-step instructions, and smart kitchen tips.\n\n**Figma Screen Reference**: Screen S05 (Pilih Bahan & Cari Resep), Screen S06 (Rekomendasi Resep AI), & Screen S07 (Detail Resep Masak).",
+        "description": "Generate ranked Indonesian home-cooking recipes via Gemini AI. Supports **two input modes**:\n1. `application/json`: provide `ingredient_ids` / `custom_ingredients` (or empty body to use all active pantry items).\n2. `multipart/form-data`: upload an `image` (JPEG, PNG, WebP, max 4 MB) — Gemini performs visual detection & OCR on the image (ingredients, fridge contents, shopping receipts, labels) and immediately returns both `detected_ingredients` and ranked `recipes`.\n\n**Figma Screen Reference**: Screen S05 (Pilih Bahan & Cari Resep), Screen S05A (Foto Bahan), Screen S06 (Rekomendasi Resep AI), & Screen S07 (Detail Resep Masak).",
         "security": [
           {
             "ApiKeyAuth": []
@@ -439,7 +443,7 @@
           }
         ],
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "example": {
@@ -450,6 +454,28 @@
                 "custom_ingredients": [
                   "Bawang Merah & Putih"
                 ]
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "image"
+                ],
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Photo of ingredients, fridge items, or grocery receipt/labels for Gemini Vision + OCR"
+                  },
+                  "custom_ingredients": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Optional extra ingredients to combine with OCR results"
+                  }
+                }
               }
             }
           }

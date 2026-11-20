@@ -20,6 +20,7 @@ var ErrNoIngredients = errors.New("no ingredients provided or found in pantry")
 
 type RecipeUsecaseItf interface {
 	GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipeRequest) ([]gemini.GeneratedRecipe, error)
+	GenerateRecipesFromImage(userID uuid.UUID, image []byte, mimeType string, req dto.GenerateRecipeRequest) (gemini.ImageRecipeResponse, error)
 	ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest) (dto.CookConfirmResponse, error)
 }
 
@@ -38,6 +39,35 @@ func NewRecipeUsecase(p pantryRepo.PantryRepoItf, i impactRepo.ImpactRepoItf, g 
 }
 
 func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipeRequest) ([]gemini.GeneratedRecipe, error) {
+	ingredients, err := u.collectIngredients(userID, req, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(ingredients) == 0 {
+		return nil, ErrNoIngredients
+	}
+
+	return u.gemini.GenerateRecipes(ingredients)
+}
+
+func (u *RecipeUsecase) GenerateRecipesFromImage(userID uuid.UUID, image []byte, mimeType string, req dto.GenerateRecipeRequest) (gemini.ImageRecipeResponse, error) {
+	extra, err := u.collectIngredients(userID, req, false)
+	if err != nil {
+		return gemini.ImageRecipeResponse{}, err
+	}
+
+	res, err := u.gemini.GenerateRecipesFromImage(image, mimeType, extra)
+	if err != nil {
+		return gemini.ImageRecipeResponse{}, err
+	}
+	if len(res.DetectedIngredients) == 0 && len(res.Recipes) == 0 {
+		return gemini.ImageRecipeResponse{}, ErrNoIngredients
+	}
+
+	return res, nil
+}
+
+func (u *RecipeUsecase) collectIngredients(userID uuid.UUID, req dto.GenerateRecipeRequest, fallbackToPantry bool) ([]gemini.IngredientInput, error) {
 	var ingredients []gemini.IngredientInput
 
 	if len(req.IngredientIDs) > 0 {
@@ -55,7 +85,7 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 				})
 			}
 		}
-	} else if len(req.CustomIngredients) == 0 {
+	} else if fallbackToPantry && len(req.CustomIngredients) == 0 {
 		items, err := u.pantryRepo.FindAllByUserID(userID, "")
 		if err != nil {
 			return nil, err
@@ -80,11 +110,7 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 		}
 	}
 
-	if len(ingredients) == 0 {
-		return nil, ErrNoIngredients
-	}
-
-	return u.gemini.GenerateRecipes(ingredients)
+	return ingredients, nil
 }
 
 func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest) (dto.CookConfirmResponse, error) {

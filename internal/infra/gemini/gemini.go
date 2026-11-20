@@ -62,8 +62,14 @@ type detectResponse struct {
 	Ingredients []DetectedIngredient `json:"ingredients"`
 }
 
+type ImageRecipeResponse struct {
+	DetectedIngredients []DetectedIngredient `json:"detected_ingredients"`
+	Recipes             []GeneratedRecipe    `json:"recipes"`
+}
+
 type GeminiItf interface {
 	GenerateRecipes(ingredients []IngredientInput) ([]GeneratedRecipe, error)
+	GenerateRecipesFromImage(image []byte, mimeType string, extraIngredients []IngredientInput) (ImageRecipeResponse, error)
 	DetectIngredients(image []byte, mimeType string) ([]DetectedIngredient, error)
 }
 
@@ -202,8 +208,81 @@ func (g *GeminiStruct) generateWithFallback(caller string, contents []*genai.Con
 	return nil, lastErr
 }
 
-func (g *GeminiStruct) GenerateRecipes(ingredients []IngredientInput) ([]GeneratedRecipe, error) {
+func recipeListSchema() *genai.Schema {
+	return &genai.Schema{
+		Type: genai.TypeArray,
+		Items: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				"recipe_name":          {Type: genai.TypeString},
+				"match_percentage":     {Type: genai.TypeInteger},
+				"cooking_time_minutes": {Type: genai.TypeInteger},
+				"difficulty":           {Type: genai.TypeString},
+				"portions":             {Type: genai.TypeInteger},
+				"available_ingredients": {
+					Type: genai.TypeArray,
+					Items: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"name":     {Type: genai.TypeString},
+							"quantity": {Type: genai.TypeString},
+						},
+						Required: []string{"name", "quantity"},
+					},
+				},
+				"additional_ingredients": {
+					Type: genai.TypeArray,
+					Items: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"name":     {Type: genai.TypeString},
+							"quantity": {Type: genai.TypeString},
+						},
+						Required: []string{"name", "quantity"},
+					},
+				},
+				"steps": {
+					Type:  genai.TypeArray,
+					Items: &genai.Schema{Type: genai.TypeString},
+				},
+				"smart_tips": {Type: genai.TypeString},
+			},
+			Required: []string{
+				"recipe_name", "match_percentage", "cooking_time_minutes",
+				"difficulty", "portions",
+				"available_ingredients", "additional_ingredients",
+				"steps", "smart_tips",
+			},
+		},
+	}
+}
 
+func ingredientListSchema() *genai.Schema {
+	return &genai.Schema{
+		Type: genai.TypeArray,
+		Items: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				"name":     {Type: genai.TypeString},
+				"quantity": {Type: genai.TypeNumber},
+				"unit":     {Type: genai.TypeString},
+			},
+			Required: []string{"name", "quantity", "unit"},
+		},
+	}
+}
+
+func sortRecipesByMatch(recipes []GeneratedRecipe) []GeneratedRecipe {
+	if recipes == nil {
+		return []GeneratedRecipe{}
+	}
+	sort.SliceStable(recipes, func(i, j int) bool {
+		return recipes[i].MatchPercentage > recipes[j].MatchPercentage
+	})
+	return recipes
+}
+
+func (g *GeminiStruct) GenerateRecipes(ingredients []IngredientInput) ([]GeneratedRecipe, error) {
 	var sb strings.Builder
 	sb.WriteString("Daftar bahan makanan dapur yang tersedia:\n")
 	for _, ing := range ingredients {
@@ -234,52 +313,7 @@ Aturan penting:
 			ResponseSchema: &genai.Schema{
 				Type: genai.TypeObject,
 				Properties: map[string]*genai.Schema{
-					"recipes": {
-						Type: genai.TypeArray,
-						Items: &genai.Schema{
-							Type: genai.TypeObject,
-							Properties: map[string]*genai.Schema{
-								"recipe_name":          {Type: genai.TypeString},
-								"match_percentage":     {Type: genai.TypeInteger},
-								"cooking_time_minutes": {Type: genai.TypeInteger},
-								"difficulty":           {Type: genai.TypeString},
-								"portions":             {Type: genai.TypeInteger},
-								"available_ingredients": {
-									Type: genai.TypeArray,
-									Items: &genai.Schema{
-										Type: genai.TypeObject,
-										Properties: map[string]*genai.Schema{
-											"name":     {Type: genai.TypeString},
-											"quantity": {Type: genai.TypeString},
-										},
-										Required: []string{"name", "quantity"},
-									},
-								},
-								"additional_ingredients": {
-									Type: genai.TypeArray,
-									Items: &genai.Schema{
-										Type: genai.TypeObject,
-										Properties: map[string]*genai.Schema{
-											"name":     {Type: genai.TypeString},
-											"quantity": {Type: genai.TypeString},
-										},
-										Required: []string{"name", "quantity"},
-									},
-								},
-								"steps": {
-									Type:  genai.TypeArray,
-									Items: &genai.Schema{Type: genai.TypeString},
-								},
-								"smart_tips": {Type: genai.TypeString},
-							},
-							Required: []string{
-								"recipe_name", "match_percentage", "cooking_time_minutes",
-								"difficulty", "portions",
-								"available_ingredients", "additional_ingredients",
-								"steps", "smart_tips",
-							},
-						},
-					},
+					"recipes": recipeListSchema(),
 				},
 				Required: []string{"recipes"},
 			},
@@ -300,25 +334,88 @@ Aturan penting:
 		return nil, err
 	}
 
-	if recipeResp.Recipes == nil {
-		recipeResp.Recipes = []GeneratedRecipe{}
-	}
-	sort.SliceStable(recipeResp.Recipes, func(i, j int) bool {
-		return recipeResp.Recipes[i].MatchPercentage > recipeResp.Recipes[j].MatchPercentage
-	})
+	return sortRecipesByMatch(recipeResp.Recipes), nil
+}
 
-	return recipeResp.Recipes, nil
+func (g *GeminiStruct) GenerateRecipesFromImage(image []byte, mimeType string, extraIngredients []IngredientInput) (ImageRecipeResponse, error) {
+	var extraSection strings.Builder
+	if len(extraIngredients) > 0 {
+		extraSection.WriteString("\nBahan tambahan yang juga tersedia dari pengguna:\n")
+		for _, ing := range extraIngredients {
+			extraSection.WriteString(fmt.Sprintf("- %s: %.2f %s\n", ing.Name, ing.Quantity, ing.Unit))
+		}
+	}
+
+	prompt := fmt.Sprintf(`
+Kamu adalah koki profesional dan asisten OCR spesialis Zero-Waste Food Management di Indonesia.
+Tugasmu:
+1. Kenali seluruh bahan makanan dari gambar yang dikirim, baik secara visual (bahan mentah, sayuran, buah, lauk, sisa makanan, isi kulkas) maupun melalui OCR teks (struk belanja, catatan daftar bahan, label kemasan makanan).
+2. Masukkan hasil pengenalan bahan dari gambar ke 'detected_ingredients' ('name' dalam Bahasa Indonesia, perkiraan 'quantity' angka, dan 'unit' satuan rumah tangga yang wajar). Abaikan benda atau teks non-makanan seperti harga, nama toko, atau tanggal struk.
+3. Berdasarkan bahan yang terdeteksi dari gambar%s, berikan 2 sampai 3 rekomendasi resep masakan rumahan Indonesia yang lezat, praktis, dan zero-waste pada 'recipes'.
+4. Jika gambar sama sekali tidak mengandung bahan makanan maupun teks bahan makanan, kembalikan 'detected_ingredients' kosong dan 'recipes' kosong.
+
+Aturan resep:
+1. Prioritaskan penggunaan bahan yang terdeteksi sebanyak mungkin.
+2. Tambahkan hanya bumbu/bahan dasar umum rumah tangga Indonesia (minyak, garam, bawang putih/merah, kecap, merica) pada 'additional_ingredients'.
+3. 'match_percentage' bernilai 50 sampai 95 dan diurutkan dari tertinggi ke terendah.
+4. 'steps' berisi 4 sampai 6 tahap memasak singkat dan jelas dalam Bahasa Indonesia.
+5. 'smart_tips' memberikan tips praktis menjaga cita rasa dan mencegah bahan tersisa lagi.
+`, extraSection.String())
+
+	temp := float32(0.2)
+	contents := []*genai.Content{
+		genai.NewContentFromParts([]*genai.Part{
+			genai.NewPartFromBytes(image, mimeType),
+			genai.NewPartFromText(prompt),
+		}, genai.RoleUser),
+	}
+
+	result, err := g.generateWithFallback(
+		"GenerateRecipesFromImage",
+		contents,
+		&genai.GenerateContentConfig{
+			ResponseMIMEType: "application/json",
+			ResponseSchema: &genai.Schema{
+				Type: genai.TypeObject,
+				Properties: map[string]*genai.Schema{
+					"detected_ingredients": ingredientListSchema(),
+					"recipes":              recipeListSchema(),
+				},
+				Required: []string{"detected_ingredients", "recipes"},
+			},
+			Temperature: &temp,
+		},
+	)
+	if err != nil {
+		return ImageRecipeResponse{}, err
+	}
+
+	var resp ImageRecipeResponse
+	if err := sonic.Unmarshal([]byte(result.Text()), &resp); err != nil {
+		log.Error(log.LogInfo{
+			"error": err.Error(),
+			"raw":   result.Text(),
+		}, "[Gemini][GenerateRecipesFromImage] failed to unmarshal json")
+		return ImageRecipeResponse{}, err
+	}
+
+	if resp.DetectedIngredients == nil {
+		resp.DetectedIngredients = []DetectedIngredient{}
+	}
+	resp.Recipes = sortRecipesByMatch(resp.Recipes)
+
+	return resp, nil
 }
 
 func (g *GeminiStruct) DetectIngredients(image []byte, mimeType string) ([]DetectedIngredient, error) {
 	prompt := `
-Kamu adalah asisten dapur yang mengenali bahan makanan dari foto untuk aplikasi pengelolaan bahan sisa di Indonesia.
-Identifikasi setiap bahan makanan mentah atau sisa yang terlihat di foto.
+Kamu adalah asisten dapur dengan kemampuan OCR dan pengenalan visual untuk aplikasi pengelolaan bahan sisa di Indonesia.
+Identifikasi setiap bahan makanan yang terlihat di foto maupun dari teks OCR (seperti struk belanja, label kemasan, atau catatan bahan).
 
 Aturan penting:
 1. 'name' adalah nama bahan dalam Bahasa Indonesia (contoh: Bayam, Tomat, Bawang Putih, Nasi Putih).
-2. 'quantity' adalah perkiraan jumlah yang terlihat, 'unit' adalah satuan rumah tangga yang wajar (contoh: ikat, buah, siung, butir, porsi, gram, lembar).
-3. Abaikan benda yang bukan bahan makanan. Jika tidak ada bahan makanan, kembalikan daftar kosong.
+2. 'quantity' adalah perkiraan jumlah yang terlihat atau tertulis, 'unit' adalah satuan rumah tangga yang wajar (contoh: ikat, buah, siung, butir, porsi, gram, lembar).
+3. Abaikan benda atau teks non-makanan (seperti harga atau nama toko). Jika tidak ada bahan makanan, kembalikan daftar kosong.
 `
 
 	temp := float32(0.1)
@@ -337,18 +434,7 @@ Aturan penting:
 			ResponseSchema: &genai.Schema{
 				Type: genai.TypeObject,
 				Properties: map[string]*genai.Schema{
-					"ingredients": {
-						Type: genai.TypeArray,
-						Items: &genai.Schema{
-							Type: genai.TypeObject,
-							Properties: map[string]*genai.Schema{
-								"name":     {Type: genai.TypeString},
-								"quantity": {Type: genai.TypeNumber},
-								"unit":     {Type: genai.TypeString},
-							},
-							Required: []string{"name", "quantity", "unit"},
-						},
-					},
+					"ingredients": ingredientListSchema(),
 				},
 				Required: []string{"ingredients"},
 			},

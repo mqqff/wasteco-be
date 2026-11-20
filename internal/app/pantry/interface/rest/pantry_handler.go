@@ -2,8 +2,6 @@ package rest
 
 import (
 	"errors"
-	"io"
-	"net/http"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -12,6 +10,7 @@ import (
 	"github.com/mqqff/wasteco-be/internal/app/pantry/usecase"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/middlewares"
+	"github.com/mqqff/wasteco-be/pkg/media"
 )
 
 type PantryHandler struct {
@@ -126,48 +125,10 @@ func (h *PantryHandler) AddIngredients(c fiber.Ctx) error {
 	})
 }
 
-var allowedScanTypes = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/webp": true,
-}
-
 func (h *PantryHandler) ScanIngredients(c fiber.Ctx) error {
-	fileHeader, err := c.FormFile("image")
+	data, mimeType, err := media.ReadImage(c, "image")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "bad_request",
-			"error":      err.Error(),
-			"message":    "Please upload a photo in the 'image' field",
-		})
-	}
-
-	file, err := fileHeader.Open()
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "bad_request",
-			"error":      err.Error(),
-			"message":    "Failed to read uploaded photo",
-		})
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "bad_request",
-			"error":      err.Error(),
-			"message":    "Failed to read uploaded photo",
-		})
-	}
-
-	mimeType := http.DetectContentType(data)
-	if !allowedScanTypes[mimeType] {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_code": "validation_error",
-			"error":      "unsupported file type: " + mimeType,
-			"message":    "Photo must be JPEG, PNG, or WebP",
-		})
+		return media.WriteError(c, err)
 	}
 
 	items, err := h.pantryUsecase.ScanIngredients(data, mimeType)

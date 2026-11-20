@@ -2,6 +2,7 @@ package rest
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -10,6 +11,7 @@ import (
 	"github.com/mqqff/wasteco-be/internal/app/recipe/usecase"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/middlewares"
+	"github.com/mqqff/wasteco-be/pkg/media"
 )
 
 type RecipeHandler struct {
@@ -30,6 +32,10 @@ func NewRecipeHandler(r fiber.Router, m middlewares.MiddlewareItf, u usecase.Rec
 
 func (h *RecipeHandler) GenerateRecipes(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
+
+	if strings.HasPrefix(strings.ToLower(c.Get(fiber.HeaderContentType)), "multipart/form-data") {
+		return h.generateRecipesFromImage(c, userID)
+	}
 
 	req := dto.GenerateRecipeRequest{}
 	if len(c.Body()) > 0 {
@@ -52,19 +58,7 @@ func (h *RecipeHandler) GenerateRecipes(c fiber.Ctx) error {
 
 	recipes, err := h.recipeUsecase.GenerateRecipes(userID, req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrNoIngredients) {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error_code": "bad_request",
-				"error":      err.Error(),
-				"message":    "Please add or select at least one active ingredient",
-			})
-		}
-
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error_code": "recipe_generation_error",
-			"error":      err.Error(),
-			"message":    "Failed to generate zero-waste recipes with Gemini AI",
-		})
+		return recipeGenerationError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -72,6 +66,55 @@ func (h *RecipeHandler) GenerateRecipes(c fiber.Ctx) error {
 			"recipes": recipes,
 			"total":   len(recipes),
 		},
+	})
+}
+
+func (h *RecipeHandler) generateRecipesFromImage(c fiber.Ctx, userID uuid.UUID) error {
+	data, mimeType, err := media.ReadImage(c, "image")
+	if err != nil {
+		return media.WriteError(c, err)
+	}
+
+	req := dto.GenerateRecipeRequest{}
+	if form, err := c.MultipartForm(); err == nil && form != nil {
+		req.IngredientIDs = form.Value["ingredient_ids"]
+		req.CustomIngredients = form.Value["custom_ingredients"]
+		if err := h.validator.Struct(req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error_code": "validation_error",
+				"error":      err.Error(),
+				"message":    "Validation failed",
+			})
+		}
+	}
+
+	res, err := h.recipeUsecase.GenerateRecipesFromImage(userID, data, mimeType, req)
+	if err != nil {
+		return recipeGenerationError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"payload": fiber.Map{
+			"detected_ingredients": res.DetectedIngredients,
+			"recipes":              res.Recipes,
+			"total":                len(res.Recipes),
+		},
+	})
+}
+
+func recipeGenerationError(c fiber.Ctx, err error) error {
+	if errors.Is(err, usecase.ErrNoIngredients) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_code": "bad_request",
+			"error":      err.Error(),
+			"message":    "Please add or select at least one active ingredient",
+		})
+	}
+
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error_code": "recipe_generation_error",
+		"error":      err.Error(),
+		"message":    "Failed to generate zero-waste recipes with Gemini AI",
 	})
 }
 

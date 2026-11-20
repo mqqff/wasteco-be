@@ -71,3 +71,33 @@ func TestFallbackOnUnavailableModelAndStopOnAuthError(t *testing.T) {
 		t.Fatalf("403 should not retry fallback, called = %v", called)
 	}
 }
+
+func TestGenerateRecipesFromImageSortsAndParsesOCR(t *testing.T) {
+	g := &GeminiStruct{
+		models: []string{"primary-model"},
+		generateFn: func(_ context.Context, _ string, _ []*genai.Content, _ *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{Text: `{"detected_ingredients":[{"name":"Bayam","quantity":1,"unit":"ikat"}],"recipes":[{"recipe_name":"Tumis","match_percentage":70,"cooking_time_minutes":10,"difficulty":"Mudah","portions":1,"available_ingredients":[],"additional_ingredients":[],"steps":["Tumis"],"smart_tips":"Tips"},{"recipe_name":"Sup Bayam","match_percentage":95,"cooking_time_minutes":15,"difficulty":"Mudah","portions":2,"available_ingredients":[],"additional_ingredients":[],"steps":["Rebus"],"smart_tips":"Tips"}]}`},
+							},
+						},
+					},
+				},
+			}, nil
+		},
+	}
+
+	res, err := g.GenerateRecipesFromImage([]byte("img"), "image/jpeg", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.DetectedIngredients) != 1 || res.DetectedIngredients[0].Name != "Bayam" {
+		t.Fatalf("unexpected detected ingredients: %+v", res.DetectedIngredients)
+	}
+	if len(res.Recipes) != 2 || res.Recipes[0].RecipeName != "Sup Bayam" {
+		t.Fatalf("recipes not sorted by match_percentage: %+v", res.Recipes)
+	}
+}
