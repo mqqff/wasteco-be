@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -77,9 +78,11 @@ func (r *ImpactRepo) FindByID(id uuid.UUID) (entity.ImpactActivity, error) {
 	var item entity.ImpactActivity
 	err := r.db.Where("id = ?", id).First(&item).Error
 	if err != nil {
-		log.Error(log.LogInfo{
-			"error": err.Error(),
-		}, "[ImpactRepo][FindByID] failed to find impact activity")
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Error(log.LogInfo{
+				"error": err.Error(),
+			}, "[ImpactRepo][FindByID] failed to find impact activity")
+		}
 		return entity.ImpactActivity{}, err
 	}
 

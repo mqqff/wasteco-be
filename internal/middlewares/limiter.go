@@ -1,10 +1,12 @@
 package middlewares
 
 import (
+	"strings"
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/utils/v2"
-	"time"
 )
 
 func (m *Middleware) Limit(max int, exp time.Duration) fiber.Handler {
@@ -12,7 +14,15 @@ func (m *Middleware) Limit(max int, exp time.Duration) fiber.Handler {
 		Max:        max,
 		Expiration: exp,
 		KeyGenerator: func(c fiber.Ctx) string {
-			return c.Get("x-forwarded-for")
+			if ip := strings.TrimSpace(c.Get("Cf-Connecting-Ip")); ip != "" {
+				return ip
+			}
+			if xff := c.Get("x-forwarded-for"); xff != "" {
+				if first := strings.TrimSpace(strings.Split(xff, ",")[0]); first != "" {
+					return first
+				}
+			}
+			return c.IP()
 		},
 		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{

@@ -109,7 +109,7 @@ func (s *HTTPServer) MountRoutes(db *gorm.DB) {
 	donationUsecase := DonationUsecase.NewDonationUsecase(donationRepo, pantryRepo, userRepo)
 	impactUsecase := ImpactUsecase.NewImpactUsecase(impactRepo)
 
-	AuthHandler.NewAuthHandler(v1, authUsecase, validator)
+	AuthHandler.NewAuthHandler(v1, middleware, authUsecase, validator)
 	UserHandler.NewUserHandler(v1, middleware, userUsecase, validator)
 	PantryHandler.NewPantryHandler(v1, middleware, pantryUsecase, validator)
 	RecipeHandler.NewRecipeHandler(v1, middleware, recipeUsecase, validator)

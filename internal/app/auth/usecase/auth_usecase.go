@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mqqff/wasteco-be/internal/app/user/repository"
@@ -9,6 +10,11 @@ import (
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
 	"github.com/mqqff/wasteco-be/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	ErrEmailExists        = errors.New("email already registered")
+	ErrInvalidCredentials = errors.New("invalid email or password")
 )
 
 type AuthUsecaseItf interface {
@@ -29,13 +35,15 @@ func NewAuthUsecase(r repository.UserRepoItf, j jwt.JWTIf) AuthUsecaseItf {
 }
 
 func (u *AuthUsecase) Register(req dto.RegisterRequest) (dto.AuthResponse, error) {
-	existingUser, err := u.userRepo.Show(dto.UserParam{Email: req.Email})
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	existingUser, err := u.userRepo.Show(dto.UserParam{Email: email})
 	if err != nil {
 		return dto.AuthResponse{}, err
 	}
 
 	if existingUser.ID != uuid.Nil {
-		return dto.AuthResponse{}, errors.New("email already registered")
+		return dto.AuthResponse{}, ErrEmailExists
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -45,11 +53,11 @@ func (u *AuthUsecase) Register(req dto.RegisterRequest) (dto.AuthResponse, error
 
 	newUser := entity.User{
 		ID:              uuid.New(),
-		Email:           req.Email,
-		Name:            req.Name,
+		Email:           email,
+		Name:            strings.TrimSpace(req.Name),
 		PasswordHash:    string(hashedPassword),
-		PhoneNumber:     req.PhoneNumber,
-		AreaName:        req.AreaName,
+		PhoneNumber:     strings.TrimSpace(req.PhoneNumber),
+		AreaName:        strings.TrimSpace(req.AreaName),
 		Latitude:        req.Latitude,
 		Longitude:       req.Longitude,
 		SharingRadiusKM: 2,
@@ -73,28 +81,28 @@ func (u *AuthUsecase) Register(req dto.RegisterRequest) (dto.AuthResponse, error
 			Name:            newUser.Name,
 			PhoneNumber:     newUser.PhoneNumber,
 			AreaName:        newUser.AreaName,
+			Latitude:        newUser.Latitude,
+			Longitude:       newUser.Longitude,
 			SharingRadiusKM: newUser.SharingRadiusKM,
 		},
 	}, nil
 }
 
 func (u *AuthUsecase) Login(req dto.LoginRequest) (dto.AuthResponse, error) {
-	user, err := u.userRepo.Show(dto.UserParam{Email: req.Email})
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	user, err := u.userRepo.Show(dto.UserParam{Email: email})
 	if err != nil {
 		return dto.AuthResponse{}, err
 	}
 
-	if user.ID == uuid.Nil {
-		return dto.AuthResponse{}, errors.New("invalid email or password")
-	}
-
-	if user.PasswordHash == "" {
-		return dto.AuthResponse{}, errors.New("account password not configured")
+	if user.ID == uuid.Nil || user.PasswordHash == "" {
+		return dto.AuthResponse{}, ErrInvalidCredentials
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
-		return dto.AuthResponse{}, errors.New("invalid email or password")
+		return dto.AuthResponse{}, ErrInvalidCredentials
 	}
 
 	jwtToken, err := u.jwt.GenerateToken(user.ID)

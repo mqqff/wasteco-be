@@ -72,12 +72,13 @@ cp .env.example .env
 | `DB_PASS` | MySQL password | `root` |
 | `DB_HOST_PORT`| MySQL port exposed to host machine | `3307` |
 | `JWT_SECRET_KEY` | HMAC secret key for signing JWT tokens | `<secret_key>` |
-| `JWT_EXPIRED_TIME` | JWT token validity duration | `2h` |
+| `JWT_EXPIRED_TIME` | JWT token validity duration | `168h` |
 | `SUPABASE_URL` | Supabase project URL | `https://<id>.supabase.co` |
 | `SUPABASE_SECRET`| Supabase service role secret | `<service_role_key>` |
 | `SUPABASE_BUCKET`| Supabase bucket name for donation images | `donations` |
 | `GEMINI_API_KEY` | Google Gemini API Key | `<gemini_api_key>` |
-| `GEMINI_MODEL` | Gemini model variant | `gemini-flash-lite-latest` |
+| `GEMINI_MODEL` | Primary Gemini model variant | `gemini-flash-lite-latest` |
+| `GEMINI_FALLBACK_MODELS` | Comma-separated fallback models when primary is unavailable | `gemini-flash-latest,gemini-2.5-flash,gemini-2.5-flash-lite` |
 
 ---
 

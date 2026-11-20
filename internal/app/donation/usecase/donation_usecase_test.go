@@ -11,6 +11,7 @@ import (
 	userRepo "github.com/mqqff/wasteco-be/internal/app/user/repository"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
+	"github.com/mqqff/wasteco-be/pkg/unit"
 )
 
 type fakeDonationRepo struct {
@@ -150,5 +151,29 @@ func TestWhatsAppURL(t *testing.T) {
 		if got := whatsAppURL(in); got != want {
 			t.Fatalf("whatsAppURL(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestMatchPantryItemAndUnitConversion(t *testing.T) {
+	sauceID := uuid.New()
+	carrotKgID := uuid.New()
+	carrotGramID := uuid.New()
+	pantry := []entity.PantryIngredient{
+		{ID: sauceID, Name: "Saus Tomat", Quantity: 1, Unit: "botol"},
+		{ID: carrotKgID, Name: "Wortel Segar", Quantity: 1, Unit: "kg"},
+		{ID: carrotGramID, Name: "Wortel", Quantity: 200, Unit: "gram"},
+	}
+
+	if got := matchPantryItem("Tomat", "buah", pantry); got != nil {
+		t.Fatalf("Tomat unexpectedly matched %q", got.Name)
+	}
+	if got := matchPantryItem("Wortel", "gr", pantry); got == nil || got.ID != carrotGramID {
+		t.Fatalf("Wortel matched %v, want exact Wortel (%v)", got, carrotGramID)
+	}
+	if qty, ok := unit.ConvertQuantity(500, "gram", "kg"); !ok || qty != 0.5 {
+		t.Fatalf("500 gram to kg = (%v, %v), want (0.5, true)", qty, ok)
+	}
+	if _, ok := unit.ConvertQuantity(1, "ikat", "gram"); ok {
+		t.Fatal("ikat to gram should not be compatible")
 	}
 }

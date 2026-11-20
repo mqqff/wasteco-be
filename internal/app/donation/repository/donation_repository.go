@@ -21,7 +21,7 @@ type DonationRepoItf interface {
 	Create(request *entity.DonationRequest) error
 	FindOpen(excludeUserID uuid.UUID, search string) ([]entity.DonationRequest, error)
 	FindByID(id uuid.UUID) (entity.DonationRequest, error)
-	FindByRequesterID(userID uuid.UUID) ([]entity.DonationRequest, error)
+	FindByUser(userID uuid.UUID, role string) ([]entity.DonationRequest, error)
 	Fulfill(id, donorID uuid.UUID, items []entity.DonationRequestItem) error
 	CompleteReceipt(id, requesterID, donorID uuid.UUID, activity *entity.ImpactActivity, deductions []PantryDeduction) error
 	Cancel(id, requesterID uuid.UUID) error
@@ -54,7 +54,7 @@ func (r *DonationRepo) FindOpen(excludeUserID uuid.UUID, search string) ([]entit
 	if search != "" {
 		like := "%" + search + "%"
 		query = query.Where(
-			"title LIKE ? OR EXISTS (SELECT 1 FROM donation_request_items i WHERE i.request_id = donation_requests.id AND i.name LIKE ?)",
+			"(title LIKE ? OR EXISTS (SELECT 1 FROM donation_request_items i WHERE i.request_id = donation_requests.id AND i.name LIKE ?))",
 			like, like,
 		)
 	}
@@ -85,13 +85,24 @@ func (r *DonationRepo) FindByID(id uuid.UUID) (entity.DonationRequest, error) {
 	return request, nil
 }
 
-func (r *DonationRepo) FindByRequesterID(userID uuid.UUID) ([]entity.DonationRequest, error) {
+func (r *DonationRepo) FindByUser(userID uuid.UUID, role string) ([]entity.DonationRequest, error) {
 	var requests []entity.DonationRequest
-	err := r.db.Preload("Donor").Preload("Items").Where("requester_id = ?", userID).Order("created_at DESC").Find(&requests).Error
+	query := r.db.Preload("Requester").Preload("Donor").Preload("Items")
+
+	switch role {
+	case "donor":
+		query = query.Where("donor_id = ?", userID)
+	case "all":
+		query = query.Where("requester_id = ? OR donor_id = ?", userID, userID)
+	default:
+		query = query.Where("requester_id = ?", userID)
+	}
+
+	err := query.Order("created_at DESC").Find(&requests).Error
 	if err != nil {
 		log.Error(log.LogInfo{
 			"error": err.Error(),
-		}, "[DonationRepo][FindByRequesterID] failed to find user donation requests")
+		}, "[DonationRepo][FindByUser] failed to find user donation requests")
 		return nil, err
 	}
 
@@ -100,9 +111,10 @@ func (r *DonationRepo) FindByRequesterID(userID uuid.UUID) ([]entity.DonationReq
 
 func (r *DonationRepo) Fulfill(id, donorID uuid.UUID, items []entity.DonationRequestItem) error {
 	err := r.db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
 		res := tx.Model(&entity.DonationRequest{}).
-			Where("id = ? AND status = ?", id, "open").
-			Updates(map[string]any{"donor_id": donorID, "status": "handed_over", "handed_over_at": time.Now()})
+			Where("id = ? AND status = ? AND receive_end > ?", id, "open", now).
+			Updates(map[string]any{"donor_id": donorID, "status": "handed_over", "handed_over_at": now})
 		if res.Error != nil {
 			return res.Error
 		}

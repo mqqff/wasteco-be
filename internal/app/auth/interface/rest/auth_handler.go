@@ -1,10 +1,14 @@
 package rest
 
 import (
+	"errors"
+	"time"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/mqqff/wasteco-be/internal/app/auth/usecase"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
+	"github.com/mqqff/wasteco-be/internal/middlewares"
 )
 
 type AuthHandler struct {
@@ -12,13 +16,13 @@ type AuthHandler struct {
 	validator   *validator.Validate
 }
 
-func NewAuthHandler(r fiber.Router, u usecase.AuthUsecaseItf, v *validator.Validate) {
+func NewAuthHandler(r fiber.Router, m middlewares.MiddlewareItf, u usecase.AuthUsecaseItf, v *validator.Validate) {
 	handler := &AuthHandler{
 		authUsecase: u,
 		validator:   v,
 	}
 
-	auth := r.Group("/auth")
+	auth := r.Group("/auth", m.Limit(20, time.Minute))
 	auth.Post("/register", handler.HandleRegister)
 	auth.Post("/login", handler.HandleLogin)
 }
@@ -43,7 +47,7 @@ func (h *AuthHandler) HandleRegister(c fiber.Ctx) error {
 
 	res, err := h.authUsecase.Register(req)
 	if err != nil {
-		if err.Error() == "email already registered" {
+		if errors.Is(err, usecase.ErrEmailExists) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error_code": "email_already_registered",
 				"error":      err.Error(),
@@ -83,10 +87,18 @@ func (h *AuthHandler) HandleLogin(c fiber.Ctx) error {
 
 	res, err := h.authUsecase.Login(req)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error_code": "invalid_credentials",
+		if errors.Is(err, usecase.ErrInvalidCredentials) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error_code": "invalid_credentials",
+				"error":      err.Error(),
+				"message":    "Invalid email or password",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error_code": "internal_server_error",
 			"error":      err.Error(),
-			"message":    "Invalid email or password",
+			"message":    "Failed to login",
 		})
 	}
 

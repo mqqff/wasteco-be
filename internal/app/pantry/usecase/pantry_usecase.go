@@ -10,10 +10,17 @@ import (
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
 	"github.com/mqqff/wasteco-be/internal/infra/gemini"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrNotFound          = errors.New("pantry ingredient not found")
+	ErrUnauthorized      = errors.New("unauthorized")
+	ErrInvalidExpiryDate = errors.New("expiry_date must be YYYY-MM-DD")
 )
 
 type PantryUsecaseItf interface {
-	GetIngredients(userID uuid.UUID, category string) ([]dto.PantryItemResponse, error)
+	GetIngredients(userID uuid.UUID, category, status string) ([]dto.PantryItemResponse, error)
 	AddIngredient(userID uuid.UUID, req dto.CreatePantryItemRequest) (dto.PantryItemResponse, error)
 	AddIngredients(userID uuid.UUID, req dto.BulkCreatePantryItemRequest) ([]dto.PantryItemResponse, error)
 	ScanIngredients(image []byte, mimeType string) ([]gemini.DetectedIngredient, error)
@@ -33,7 +40,7 @@ func NewPantryUsecase(r repository.PantryRepoItf, g gemini.GeminiItf) PantryUsec
 	}
 }
 
-func (u *PantryUsecase) GetIngredients(userID uuid.UUID, category string) ([]dto.PantryItemResponse, error) {
+func (u *PantryUsecase) GetIngredients(userID uuid.UUID, category, status string) ([]dto.PantryItemResponse, error) {
 	items, err := u.pantryRepo.FindAllByUserID(userID, category)
 	if err != nil {
 		return nil, err
@@ -44,6 +51,9 @@ func (u *PantryUsecase) GetIngredients(userID uuid.UUID, category string) ([]dto
 
 	for _, item := range items {
 		resp := u.mapToResponse(item, now)
+		if status != "" && resp.Status != status {
+			continue
+		}
 		responses = append(responses, resp)
 	}
 
@@ -51,10 +61,12 @@ func (u *PantryUsecase) GetIngredients(userID uuid.UUID, category string) ([]dto
 }
 
 func (u *PantryUsecase) AddIngredient(userID uuid.UUID, req dto.CreatePantryItemRequest) (dto.PantryItemResponse, error) {
-	item := newPantryItem(userID, req)
-
-	err := u.pantryRepo.Create(&item)
+	item, err := newPantryItem(userID, req)
 	if err != nil {
+		return dto.PantryItemResponse{}, err
+	}
+
+	if err := u.pantryRepo.Create(&item); err != nil {
 		return dto.PantryItemResponse{}, err
 	}
 
@@ -64,7 +76,11 @@ func (u *PantryUsecase) AddIngredient(userID uuid.UUID, req dto.CreatePantryItem
 func (u *PantryUsecase) AddIngredients(userID uuid.UUID, req dto.BulkCreatePantryItemRequest) ([]dto.PantryItemResponse, error) {
 	items := make([]entity.PantryIngredient, 0, len(req.Items))
 	for _, r := range req.Items {
-		items = append(items, newPantryItem(userID, r))
+		item, err := newPantryItem(userID, r)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
 	}
 
 	if err := u.pantryRepo.CreateMany(items); err != nil {
@@ -92,19 +108,38 @@ func (u *PantryUsecase) ScanIngredients(image []byte, mimeType string) ([]gemini
 	return items, nil
 }
 
-func newPantryItem(userID uuid.UUID, req dto.CreatePantryItemRequest) entity.PantryIngredient {
+func parseExpiryDate(raw string) (*time.Time, error) {
+	parsed, err := time.Parse("2006-01-02", raw)
+	if err != nil {
+		return nil, ErrInvalidExpiryDate
+	}
+	return &parsed, nil
+}
+
+func resolveActiveStatus(status string, expiryDate *time.Time, now time.Time) string {
+	if status == "used" || status == "donated" {
+		return status
+	}
+	if expiryDate != nil && daysUntil(*expiryDate, now) <= 3 {
+		return "near_expiry"
+	}
+	return "fresh"
+}
+
+func daysUntil(expiry, now time.Time) int {
+	return int(math.Ceil(expiry.Sub(now).Hours() / 24))
+}
+
+func newPantryItem(userID uuid.UUID, req dto.CreatePantryItemRequest) (entity.PantryIngredient, error) {
 	var expiryDate *time.Time
-	status := "fresh"
+	now := time.Now()
 
 	if req.ExpiryDate != nil && *req.ExpiryDate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.ExpiryDate)
-		if err == nil {
-			expiryDate = &parsed
-			days := int(math.Ceil(time.Until(parsed).Hours() / 24))
-			if days <= 3 {
-				status = "near_expiry"
-			}
+		parsed, err := parseExpiryDate(*req.ExpiryDate)
+		if err != nil {
+			return entity.PantryIngredient{}, err
 		}
+		expiryDate = parsed
 	}
 
 	return entity.PantryIngredient{
@@ -116,18 +151,21 @@ func newPantryItem(userID uuid.UUID, req dto.CreatePantryItemRequest) entity.Pan
 		Category:        req.Category,
 		StorageLocation: req.StorageLocation,
 		ExpiryDate:      expiryDate,
-		Status:          status,
-	}
+		Status:          resolveActiveStatus("fresh", expiryDate, now),
+	}, nil
 }
 
 func (u *PantryUsecase) UpdateIngredient(userID uuid.UUID, id uuid.UUID, req dto.UpdatePantryItemRequest) (dto.PantryItemResponse, error) {
 	item, err := u.pantryRepo.FindByID(id)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return dto.PantryItemResponse{}, ErrNotFound
+		}
 		return dto.PantryItemResponse{}, err
 	}
 
 	if item.UserID != userID {
-		return dto.PantryItemResponse{}, errors.New("unauthorized")
+		return dto.PantryItemResponse{}, ErrUnauthorized
 	}
 
 	if req.Name != "" {
@@ -148,18 +186,21 @@ func (u *PantryUsecase) UpdateIngredient(userID uuid.UUID, id uuid.UUID, req dto
 	if req.StorageLocation != "" {
 		item.StorageLocation = req.StorageLocation
 	}
-	if req.Status != "" {
-		item.Status = req.Status
-	}
 	if req.ExpiryDate != nil {
 		if *req.ExpiryDate != "" {
-			parsed, err := time.Parse("2006-01-02", *req.ExpiryDate)
-			if err == nil {
-				item.ExpiryDate = &parsed
+			parsed, err := parseExpiryDate(*req.ExpiryDate)
+			if err != nil {
+				return dto.PantryItemResponse{}, err
 			}
+			item.ExpiryDate = parsed
 		} else {
 			item.ExpiryDate = nil
 		}
+	}
+	if req.Status != "" {
+		item.Status = req.Status
+	} else if req.ExpiryDate != nil {
+		item.Status = resolveActiveStatus(item.Status, item.ExpiryDate, time.Now())
 	}
 
 	err = u.pantryRepo.Update(&item)
@@ -171,7 +212,11 @@ func (u *PantryUsecase) UpdateIngredient(userID uuid.UUID, id uuid.UUID, req dto
 }
 
 func (u *PantryUsecase) DeleteIngredient(userID uuid.UUID, id uuid.UUID) error {
-	return u.pantryRepo.Delete(id, userID)
+	err := u.pantryRepo.Delete(id, userID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrNotFound
+	}
+	return err
 }
 
 func (u *PantryUsecase) mapToResponse(item entity.PantryIngredient, now time.Time) dto.PantryItemResponse {
@@ -182,13 +227,13 @@ func (u *PantryUsecase) mapToResponse(item entity.PantryIngredient, now time.Tim
 		Unit:            item.Unit,
 		Category:        item.Category,
 		StorageLocation: item.StorageLocation,
-		Status:          item.Status,
+		Status:          resolveActiveStatus(item.Status, item.ExpiryDate, now),
 		CreatedAt:       item.CreatedAt.Format(time.RFC3339),
 	}
 
 	if item.ExpiryDate != nil {
 		resp.ExpiryDate = item.ExpiryDate.Format("2006-01-02")
-		days := int(math.Ceil(item.ExpiryDate.Sub(now).Hours() / 24))
+		days := daysUntil(*item.ExpiryDate, now)
 		resp.DaysUntilExpiry = &days
 	}
 

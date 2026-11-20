@@ -3,6 +3,8 @@ package usecase
 import (
 	"errors"
 	"fmt"
+	"math"
+	"strings"
 
 	"github.com/bytedance/sonic"
 	"github.com/google/uuid"
@@ -11,7 +13,10 @@ import (
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
 	"github.com/mqqff/wasteco-be/internal/infra/gemini"
+	"github.com/mqqff/wasteco-be/pkg/unit"
 )
+
+var ErrNoIngredients = errors.New("no ingredients provided or found in pantry")
 
 type RecipeUsecaseItf interface {
 	GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipeRequest) ([]gemini.GeneratedRecipe, error)
@@ -42,7 +47,7 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 				continue
 			}
 			item, err := u.pantryRepo.FindByID(id)
-			if err == nil && item.UserID == userID {
+			if err == nil && item.UserID == userID && isActivePantryStatus(item.Status) {
 				ingredients = append(ingredients, gemini.IngredientInput{
 					Name:     item.Name,
 					Quantity: item.Quantity,
@@ -52,21 +57,23 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 		}
 	} else if len(req.CustomIngredients) == 0 {
 		items, err := u.pantryRepo.FindAllByUserID(userID, "")
-		if err == nil {
-			for _, item := range items {
-				ingredients = append(ingredients, gemini.IngredientInput{
-					Name:     item.Name,
-					Quantity: item.Quantity,
-					Unit:     item.Unit,
-				})
-			}
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			ingredients = append(ingredients, gemini.IngredientInput{
+				Name:     item.Name,
+				Quantity: item.Quantity,
+				Unit:     item.Unit,
+			})
 		}
 	}
 
 	for _, custom := range req.CustomIngredients {
-		if custom != "" {
+		trimmed := strings.TrimSpace(custom)
+		if trimmed != "" {
 			ingredients = append(ingredients, gemini.IngredientInput{
-				Name:     custom,
+				Name:     trimmed,
 				Quantity: 1,
 				Unit:     "secukupnya",
 			})
@@ -74,7 +81,7 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 	}
 
 	if len(ingredients) == 0 {
-		return nil, errors.New("no ingredients provided or found in pantry")
+		return nil, ErrNoIngredients
 	}
 
 	return u.gemini.GenerateRecipes(ingredients)
@@ -82,20 +89,23 @@ func (u *RecipeUsecase) GenerateRecipes(userID uuid.UUID, req dto.GenerateRecipe
 
 func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest) (dto.CookConfirmResponse, error) {
 	breakdown := make([]dto.ImpactItemBreakdown, 0, len(req.UsedIngredients))
+	toUpdate := make([]entity.PantryIngredient, 0, len(req.UsedIngredients))
 
 	for _, used := range req.UsedIngredients {
 		if used.IngredientID != "" {
 			id, err := uuid.Parse(used.IngredientID)
 			if err == nil {
 				item, err := u.pantryRepo.FindByID(id)
-				if err == nil && item.UserID == userID {
-					if item.Quantity <= used.Quantity {
-						item.Quantity = 0
-						item.Status = "used"
-					} else {
-						item.Quantity -= used.Quantity
+				if err == nil && item.UserID == userID && isActivePantryStatus(item.Status) {
+					if deductQty, ok := unit.ConvertQuantity(used.Quantity, used.Unit, item.Unit); ok {
+						if item.Quantity <= deductQty {
+							item.Quantity = 0
+							item.Status = "used"
+						} else {
+							item.Quantity -= deductQty
+						}
+						toUpdate = append(toUpdate, item)
 					}
-					_ = u.pantryRepo.Update(&item)
 				}
 			}
 		}
@@ -107,7 +117,13 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 		})
 	}
 
-	co2Prevented := float64(req.Portions) * 0.21
+	for i := range toUpdate {
+		if err := u.pantryRepo.Update(&toUpdate[i]); err != nil {
+			return dto.CookConfirmResponse{}, err
+		}
+	}
+
+	co2Prevented := math.Round(float64(req.Portions)*0.21*100) / 100
 
 	breakdownJSON, _ := sonic.Marshal(breakdown)
 
@@ -134,4 +150,8 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 		CO2PreventedKg: co2Prevented,
 		Message:        fmt.Sprintf("Great job! %d food portions successfully prevented from being wasted.", req.Portions),
 	}, nil
+}
+
+func isActivePantryStatus(status string) bool {
+	return status == "fresh" || status == "near_expiry"
 }

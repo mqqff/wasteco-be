@@ -1,6 +1,8 @@
 package rest
 
 import (
+	"errors"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -33,6 +35,13 @@ func (h *UserHandler) GetProfile(c fiber.Ctx) error {
 
 	user, err := h.userUsecase.GetProfile(userID)
 	if err != nil {
+		if errors.Is(err, usecase.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error_code": "not_found",
+				"error":      err.Error(),
+				"message":    "User not found",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error_code": "internal_server_error",
 			"error":      err.Error(),
@@ -69,6 +78,13 @@ func (h *UserHandler) UpdateProfile(c fiber.Ctx) error {
 
 	user, err := h.userUsecase.UpdateProfile(userID, req)
 	if err != nil {
+		if errors.Is(err, usecase.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error_code": "not_found",
+				"error":      err.Error(),
+				"message":    "User not found",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error_code": "internal_server_error",
 			"error":      err.Error(),

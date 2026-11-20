@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/gofiber/fiber/v3"
@@ -78,17 +79,24 @@ func (h *ImpactHandler) GetDetail(c fiber.Ctx) error {
 
 	detail, err := h.impactUsecase.GetDetail(userID, id)
 	if err != nil {
-		if err.Error() == "unauthorized" {
+		if errors.Is(err, usecase.ErrForbidden) {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error_code": "forbidden",
 				"error":      "forbidden",
 				"message":    "You cannot view this activity",
 			})
 		}
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error_code": "not_found",
-			"error":      "activity not found",
-			"message":    "Impact activity not found",
+		if errors.Is(err, usecase.ErrNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error_code": "not_found",
+				"error":      "activity not found",
+				"message":    "Impact activity not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error_code": "internal_server_error",
+			"error":      err.Error(),
+			"message":    "Failed to retrieve impact activity",
 		})
 	}
 

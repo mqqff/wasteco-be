@@ -136,7 +136,7 @@ func main() {
 	}
 
 	receiveStart := now.Truncate(time.Hour).Add(time.Hour)
-	receiveEnd := receiveStart.Add(3 * time.Hour)
+	receiveEnd := receiveStart.Add(7 * 24 * time.Hour)
 
 	requests := []entity.DonationRequest{
 		{

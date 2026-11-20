@@ -2,14 +2,28 @@ package gemini
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/mqqff/wasteco-be/internal/domain/env"
 	"github.com/mqqff/wasteco-be/pkg/log"
 	"google.golang.org/genai"
 )
+
+const (
+	geminiTimeout       = 30 * time.Second
+	defaultPrimaryModel = "gemini-flash-lite-latest"
+)
+
+var defaultFallbackModels = []string{
+	"gemini-flash-latest",
+	"gemini-2.5-flash",
+	"gemini-2.5-flash-lite",
+}
 
 type IngredientInput struct {
 	Name     string  `json:"name"`
@@ -53,8 +67,12 @@ type GeminiItf interface {
 	DetectIngredients(image []byte, mimeType string) ([]DetectedIngredient, error)
 }
 
+type generateFunc func(ctx context.Context, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error)
+
 type GeminiStruct struct {
-	client *genai.Client
+	client     *genai.Client
+	models     []string
+	generateFn generateFunc
 }
 
 var Gemini = getGemini()
@@ -69,13 +87,122 @@ func getGemini() GeminiItf {
 		}, "[Gemini][getGemini] failed to create gemini client")
 	}
 
-	return &GeminiStruct{client: client}
+	return &GeminiStruct{
+		client: client,
+		models: modelCandidates(env.AppEnv.GeminiModel, env.AppEnv.GeminiFallbackModels),
+	}
 }
 
-func (g *GeminiStruct) GenerateRecipes(ingredients []IngredientInput) ([]GeneratedRecipe, error) {
+func modelCandidates(primary, fallbackEnv string) []string {
+	primary = strings.TrimSpace(primary)
+	if primary == "" {
+		primary = defaultPrimaryModel
+	}
+
+	fallbacks := defaultFallbackModels
+	if strings.TrimSpace(fallbackEnv) != "" {
+		fallbacks = strings.Split(fallbackEnv, ",")
+	}
+
+	seen := map[string]bool{primary: true}
+	candidates := []string{primary}
+	for _, raw := range fallbacks {
+		m := strings.TrimSpace(raw)
+		if m == "" || seen[m] {
+			continue
+		}
+		seen[m] = true
+		candidates = append(candidates, m)
+	}
+
+	return candidates
+}
+
+func shouldFallback(err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	var apiErr genai.APIError
+	if errors.As(err, &apiErr) {
+		return isRetryableStatusCode(apiErr.Code)
+	}
+
+	var apiErrPtr *genai.APIError
+	if errors.As(err, &apiErrPtr) && apiErrPtr != nil {
+		return isRetryableStatusCode(apiErrPtr.Code)
+	}
+
+	return true
+}
+
+func isRetryableStatusCode(code int) bool {
+	switch code {
+	case 404, 429, 500, 502, 503, 504:
+		return true
+	default:
+		return false
+	}
+}
+
+func (g *GeminiStruct) callModel(ctx context.Context, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+	if g.generateFn != nil {
+		return g.generateFn(ctx, model, contents, config)
+	}
 	if g.client == nil {
 		return nil, fmt.Errorf("gemini client not initialized")
 	}
+	return g.client.Models.GenerateContent(ctx, model, contents, config)
+}
+
+func (g *GeminiStruct) generateWithFallback(caller string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+	models := g.models
+	if len(models) == 0 {
+		models = modelCandidates(env.AppEnv.GeminiModel, env.AppEnv.GeminiFallbackModels)
+	}
+
+	var lastErr error
+	for i, model := range models {
+		ctx, cancel := context.WithTimeout(context.Background(), geminiTimeout)
+		result, err := g.callModel(ctx, model, contents, config)
+		cancel()
+
+		if err == nil && result != nil && strings.TrimSpace(result.Text()) != "" {
+			if i > 0 {
+				log.Info(log.LogInfo{
+					"model": model,
+				}, "[Gemini]["+caller+"] succeeded using fallback model")
+			}
+			return result, nil
+		}
+
+		if err == nil {
+			err = fmt.Errorf("empty response from model %s", model)
+		}
+		lastErr = err
+
+		if !shouldFallback(err) || i == len(models)-1 {
+			log.Error(log.LogInfo{
+				"model": model,
+				"error": err.Error(),
+			}, "[Gemini]["+caller+"] failed to generate content from gemini")
+			return nil, err
+		}
+
+		log.Info(log.LogInfo{
+			"failed_model": model,
+			"next_model":   models[i+1],
+			"error":        err.Error(),
+		}, "[Gemini]["+caller+"] model unavailable, falling back to next model")
+	}
+
+	return nil, lastErr
+}
+
+func (g *GeminiStruct) GenerateRecipes(ingredients []IngredientInput) ([]GeneratedRecipe, error) {
 
 	var sb strings.Builder
 	sb.WriteString("Daftar bahan makanan dapur yang tersedia:\n")
@@ -99,14 +226,8 @@ Aturan penting:
 `, sb.String())
 
 	temp := float32(0.2)
-	modelName := env.AppEnv.GeminiModel
-	if modelName == "" {
-		modelName = "gemini-flash-lite-latest"
-	}
-
-	result, err := g.client.Models.GenerateContent(
-		context.Background(),
-		modelName,
+	result, err := g.generateWithFallback(
+		"GenerateRecipes",
 		genai.Text(prompt),
 		&genai.GenerateContentConfig{
 			ResponseMIMEType: "application/json",
@@ -165,11 +286,7 @@ Aturan penting:
 			Temperature: &temp,
 		},
 	)
-
 	if err != nil {
-		log.Error(log.LogInfo{
-			"error": err.Error(),
-		}, "[Gemini][GenerateRecipes] failed to generate content from gemini")
 		return nil, err
 	}
 
@@ -183,14 +300,17 @@ Aturan penting:
 		return nil, err
 	}
 
+	if recipeResp.Recipes == nil {
+		recipeResp.Recipes = []GeneratedRecipe{}
+	}
+	sort.SliceStable(recipeResp.Recipes, func(i, j int) bool {
+		return recipeResp.Recipes[i].MatchPercentage > recipeResp.Recipes[j].MatchPercentage
+	})
+
 	return recipeResp.Recipes, nil
 }
 
 func (g *GeminiStruct) DetectIngredients(image []byte, mimeType string) ([]DetectedIngredient, error) {
-	if g.client == nil {
-		return nil, fmt.Errorf("gemini client not initialized")
-	}
-
 	prompt := `
 Kamu adalah asisten dapur yang mengenali bahan makanan dari foto untuk aplikasi pengelolaan bahan sisa di Indonesia.
 Identifikasi setiap bahan makanan mentah atau sisa yang terlihat di foto.
@@ -202,11 +322,6 @@ Aturan penting:
 `
 
 	temp := float32(0.1)
-	modelName := env.AppEnv.GeminiModel
-	if modelName == "" {
-		modelName = "gemini-flash-lite-latest"
-	}
-
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
 			genai.NewPartFromBytes(image, mimeType),
@@ -214,9 +329,8 @@ Aturan penting:
 		}, genai.RoleUser),
 	}
 
-	result, err := g.client.Models.GenerateContent(
-		context.Background(),
-		modelName,
+	result, err := g.generateWithFallback(
+		"DetectIngredients",
 		contents,
 		&genai.GenerateContentConfig{
 			ResponseMIMEType: "application/json",
@@ -242,9 +356,6 @@ Aturan penting:
 		},
 	)
 	if err != nil {
-		log.Error(log.LogInfo{
-			"error": err.Error(),
-		}, "[Gemini][DetectIngredients] failed to generate content from gemini")
 		return nil, err
 	}
 
@@ -255,6 +366,10 @@ Aturan penting:
 			"raw":   result.Text(),
 		}, "[Gemini][DetectIngredients] failed to unmarshal json")
 		return nil, err
+	}
+
+	if resp.Ingredients == nil {
+		resp.Ingredients = []DetectedIngredient{}
 	}
 
 	return resp.Ingredients, nil

@@ -15,6 +15,7 @@ import (
 	userRepo "github.com/mqqff/wasteco-be/internal/app/user/repository"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
+	"github.com/mqqff/wasteco-be/pkg/unit"
 	"gorm.io/gorm"
 )
 
@@ -32,7 +33,7 @@ type DonationUsecaseItf interface {
 	CreateRequest(userID uuid.UUID, req dto.CreateDonationRequest) (dto.DonationResponse, error)
 	GetNearbyRequests(userID uuid.UUID, search string, userLat, userLong, radiusKM float64) ([]dto.DonationResponse, error)
 	GetRequestDetail(userID, id uuid.UUID, userLat, userLong float64) (dto.DonationResponse, error)
-	GetMyRequests(userID uuid.UUID) (dto.MyDonationsResponse, error)
+	GetMyRequests(userID uuid.UUID, role string) (dto.MyDonationsResponse, error)
 	Fulfill(donorID, id uuid.UUID, req dto.FulfillDonationRequest) (dto.DonationResponse, error)
 	ConfirmReceived(requesterID, id uuid.UUID) (dto.DonationResponse, error)
 	Cancel(requesterID, id uuid.UUID) error
@@ -159,10 +160,15 @@ func (u *DonationUsecase) GetRequestDetail(userID, id uuid.UUID, userLat, userLo
 	return mapToResponse(request, userID, userLat, userLong, true), nil
 }
 
-func (u *DonationUsecase) GetMyRequests(userID uuid.UUID) (dto.MyDonationsResponse, error) {
-	requests, err := u.donationRepo.FindByRequesterID(userID)
+func (u *DonationUsecase) GetMyRequests(userID uuid.UUID, role string) (dto.MyDonationsResponse, error) {
+	requests, err := u.donationRepo.FindByUser(userID, role)
 	if err != nil {
 		return dto.MyDonationsResponse{}, err
+	}
+
+	var userLat, userLong float64
+	if user, err := u.userRepo.Show(dto.UserParam{ID: userID}); err == nil {
+		userLat, userLong = user.Latitude, user.Longitude
 	}
 
 	res := dto.MyDonationsResponse{
@@ -170,7 +176,7 @@ func (u *DonationUsecase) GetMyRequests(userID uuid.UUID) (dto.MyDonationsRespon
 		History: []dto.DonationResponse{},
 	}
 	for _, r := range requests {
-		resp := mapToResponse(r, userID, 0, 0, true)
+		resp := mapToResponse(r, userID, userLat, userLong, true)
 		if r.Status == "open" || r.Status == "handed_over" {
 			res.Active = append(res.Active, resp)
 		} else {
@@ -223,7 +229,7 @@ func (u *DonationUsecase) Fulfill(donorID, id uuid.UUID, req dto.FulfillDonation
 		}
 		seen[itemID] = true
 
-		if match := matchPantryItem(item.Name, pantry); match != nil {
+		if match := matchPantryItem(item.Name, item.Unit, pantry); match != nil {
 			item.PantryIngredientID = &match.ID
 		}
 		selected = append(selected, item)
@@ -256,6 +262,15 @@ func (u *DonationUsecase) ConfirmReceived(requesterID, id uuid.UUID) (dto.Donati
 	breakdown := make([]dto.ImpactItemBreakdown, 0, len(request.Items))
 	deductions := make([]donationRepo.PantryDeduction, 0, len(request.Items))
 
+	donorPantry, err := u.pantryRepo.FindAllByUserID(donorID, "")
+	if err != nil {
+		return dto.DonationResponse{}, err
+	}
+	pantryByID := make(map[uuid.UUID]entity.PantryIngredient, len(donorPantry))
+	for _, p := range donorPantry {
+		pantryByID[p.ID] = p
+	}
+
 	for _, item := range request.Items {
 		if !item.Selected {
 			continue
@@ -268,10 +283,14 @@ func (u *DonationUsecase) ConfirmReceived(requesterID, id uuid.UUID) (dto.Donati
 		})
 
 		if item.PantryIngredientID != nil {
-			deductions = append(deductions, donationRepo.PantryDeduction{
-				PantryIngredientID: *item.PantryIngredientID,
-				Quantity:           item.Quantity,
-			})
+			if pantryItem, ok := pantryByID[*item.PantryIngredientID]; ok {
+				if qty, compatible := unit.ConvertQuantity(item.Quantity, item.Unit, pantryItem.Unit); compatible {
+					deductions = append(deductions, donationRepo.PantryDeduction{
+						PantryIngredientID: *item.PantryIngredientID,
+						Quantity:           qty,
+					})
+				}
+			}
 		}
 	}
 
@@ -324,21 +343,48 @@ func (u *DonationUsecase) findRequest(id uuid.UUID) (entity.DonationRequest, err
 	return request, err
 }
 
-func matchPantryItem(name string, pantry []entity.PantryIngredient) *entity.PantryIngredient {
+func matchPantryItem(name, targetUnit string, pantry []entity.PantryIngredient) *entity.PantryIngredient {
 	target := strings.ToLower(strings.TrimSpace(name))
-	for i := range pantry {
-		if strings.ToLower(pantry[i].Name) == target {
-			return &pantry[i]
-		}
+	if target == "" {
+		return nil
 	}
+
+	var nameFallback *entity.PantryIngredient
 	for i := range pantry {
-		candidate := strings.ToLower(pantry[i].Name)
-		if strings.Contains(candidate, target) || strings.Contains(target, candidate) {
-			return &pantry[i]
+		candidate := strings.ToLower(strings.TrimSpace(pantry[i].Name))
+		if candidate != target {
+			continue
+		}
+		if pantry[i].Unit != "" {
+			if _, ok := unit.ConvertQuantity(1, targetUnit, pantry[i].Unit); ok {
+				return &pantry[i]
+			}
+		}
+		if nameFallback == nil {
+			nameFallback = &pantry[i]
 		}
 	}
 
-	return nil
+	for i := range pantry {
+		candidate := strings.ToLower(strings.TrimSpace(pantry[i].Name))
+		if !hasWordPrefix(candidate, target) && !hasWordPrefix(target, candidate) {
+			continue
+		}
+		if pantry[i].Unit != "" {
+			if _, ok := unit.ConvertQuantity(1, targetUnit, pantry[i].Unit); ok {
+				return &pantry[i]
+			}
+		}
+		if nameFallback == nil {
+			nameFallback = &pantry[i]
+		}
+	}
+
+	return nameFallback
+}
+
+func hasWordPrefix(s, prefix string) bool {
+	return len(s) > len(prefix) && strings.HasPrefix(s, prefix+" ")
 }
 
 func defaultTitle(names []string) string {

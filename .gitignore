@@ -26,3 +26,4 @@ data/logs/
 tmp/
 bin/
 .idea/
+*.pdf

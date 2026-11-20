@@ -1,6 +1,8 @@
 package middlewares
 
 import (
+	"strings"
+
 	fiberzerolog "github.com/gofiber/contrib/v3/zerolog"
 	"github.com/gofiber/fiber/v3"
 	"github.com/mqqff/wasteco-be/internal/domain/env"
@@ -29,6 +31,9 @@ func Logger() fiber.Handler {
 		FieldsSnakeCase: true,
 		Logger:          logger,
 		Fields:          fields,
+		SkipField: func(field string, c fiber.Ctx) bool {
+			return field == fiberzerolog.FieldBody && strings.HasPrefix(c.Path(), "/api/v1/auth")
+		},
 		Messages: []string{
 			"[LoggerMiddleware.LoggerConfig] Server error",
 			"[LoggerMiddleware.LoggerConfig] Client error",

@@ -28,8 +28,9 @@ type Env struct {
 	SupabaseSecret string `mapstructure:"SUPABASE_SECRET"`
 	SupabaseBucket string `mapstructure:"SUPABASE_BUCKET"`
 
-	GeminiAPIKey string `mapstructure:"GEMINI_API_KEY"`
-	GeminiModel  string `mapstructure:"GEMINI_MODEL"`
+	GeminiAPIKey         string `mapstructure:"GEMINI_API_KEY"`
+	GeminiModel          string `mapstructure:"GEMINI_MODEL"`
+	GeminiFallbackModels string `mapstructure:"GEMINI_FALLBACK_MODELS"`
 }
 
 var AppEnv = getEnv()
@@ -47,7 +48,7 @@ func getEnv() *Env {
 		"DB_NAME", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASS",
 		"JWT_SECRET_KEY", "JWT_EXPIRED_TIME",
 		"SUPABASE_URL", "SUPABASE_SECRET", "SUPABASE_BUCKET",
-		"GEMINI_API_KEY", "GEMINI_MODEL",
+		"GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_FALLBACK_MODELS",
 	}
 	for _, key := range keys {
 		_ = viper.BindEnv(key)

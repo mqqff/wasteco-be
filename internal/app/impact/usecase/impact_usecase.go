@@ -11,6 +11,12 @@ import (
 	"github.com/mqqff/wasteco-be/internal/app/impact/repository"
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrNotFound  = errors.New("impact activity not found")
+	ErrForbidden = errors.New("unauthorized")
 )
 
 type ImpactUsecaseItf interface {
@@ -57,8 +63,11 @@ func (u *ImpactUsecase) GetMonthlySummary(userID uuid.UUID, month, year int) (dt
 		donationPct = math.Round(float64(summary.DonationPortions)/float64(totalPortions)*1000) / 10
 	}
 
-	recentDB, _, _ := u.impactRepo.FindAllByUserID(userID, 1, 3)
-	var recentResp []dto.ImpactActivityResponse
+	recentDB, _, err := u.impactRepo.FindAllByUserID(userID, 1, 3)
+	if err != nil {
+		return dto.ImpactSummaryResponse{}, err
+	}
+	recentResp := make([]dto.ImpactActivityResponse, 0, len(recentDB))
 	for _, act := range recentDB {
 		recentResp = append(recentResp, u.mapToResponse(act, false))
 	}
@@ -68,7 +77,7 @@ func (u *ImpactUsecase) GetMonthlySummary(userID uuid.UUID, month, year int) (dt
 		Year:                year,
 		MonthName:           monthName,
 		TotalPortionsSaved:  summary.TotalPortions,
-		TotalCO2PreventedKg: summary.TotalCO2,
+		TotalCO2PreventedKg: math.Round(summary.TotalCO2*100) / 100,
 		Composition: dto.ImpactComposition{
 			CookingPortions:    summary.CookingPortions,
 			CookingPercentage:  cookingPct,
@@ -94,7 +103,7 @@ func (u *ImpactUsecase) GetHistory(userID uuid.UUID, page, limit int) (dto.Impac
 
 	totalPages := int(math.Ceil(float64(total) / float64(limit)))
 
-	var activities []dto.ImpactActivityResponse
+	activities := make([]dto.ImpactActivityResponse, 0, len(items))
 	for _, act := range items {
 		activities = append(activities, u.mapToResponse(act, false))
 	}
@@ -111,11 +120,14 @@ func (u *ImpactUsecase) GetHistory(userID uuid.UUID, page, limit int) (dto.Impac
 func (u *ImpactUsecase) GetDetail(userID uuid.UUID, id uuid.UUID) (dto.ImpactActivityResponse, error) {
 	item, err := u.impactRepo.FindByID(id)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return dto.ImpactActivityResponse{}, ErrNotFound
+		}
 		return dto.ImpactActivityResponse{}, err
 	}
 
 	if item.UserID != userID {
-		return dto.ImpactActivityResponse{}, errors.New("unauthorized")
+		return dto.ImpactActivityResponse{}, ErrForbidden
 	}
 
 	return u.mapToResponse(item, true), nil
@@ -151,10 +163,15 @@ func formatActivityTime(t time.Time) string {
 	if diff < time.Hour {
 		return fmt.Sprintf("%d minutes ago", int(diff.Minutes()))
 	}
-	if diff < 24*time.Hour && t.Day() == now.Day() {
+
+	tYear, tMonth, tDay := t.Date()
+	nYear, nMonth, nDay := now.Date()
+	if tYear == nYear && tMonth == nMonth && tDay == nDay {
 		return fmt.Sprintf("Today, %s", t.Format("15:04"))
 	}
-	if diff < 48*time.Hour && t.Day() == now.Day()-1 {
+
+	yYear, yMonth, yDay := now.AddDate(0, 0, -1).Date()
+	if tYear == yYear && tMonth == yMonth && tDay == yDay {
 		return fmt.Sprintf("Yesterday, %s", t.Format("15:04"))
 	}
 

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/mqqff/wasteco-be/internal/domain/entity"
 	"github.com/mqqff/wasteco-be/pkg/log"
@@ -69,9 +71,11 @@ func (r *PantryRepo) FindByID(id uuid.UUID) (entity.PantryIngredient, error) {
 	var item entity.PantryIngredient
 	err := r.db.Where("id = ?", id).First(&item).Error
 	if err != nil {
-		log.Error(log.LogInfo{
-			"error": err.Error(),
-		}, "[PantryRepo][FindByID] failed to find pantry ingredient")
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Error(log.LogInfo{
+				"error": err.Error(),
+			}, "[PantryRepo][FindByID] failed to find pantry ingredient")
+		}
 		return entity.PantryIngredient{}, err
 	}
 
@@ -90,12 +94,16 @@ func (r *PantryRepo) Update(item *entity.PantryIngredient) error {
 }
 
 func (r *PantryRepo) Delete(id uuid.UUID, userID uuid.UUID) error {
-	err := r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&entity.PantryIngredient{}).Error
-	if err != nil {
+	res := r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&entity.PantryIngredient{})
+	if res.Error != nil {
 		log.Error(log.LogInfo{
-			"error": err.Error(),
+			"error": res.Error.Error(),
 		}, "[PantryRepo][Delete] failed to delete pantry ingredient")
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 
-	return err
+	return nil
 }

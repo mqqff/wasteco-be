@@ -1,6 +1,9 @@
 package rest
 
 import (
+	"errors"
+	"time"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -21,7 +24,7 @@ func NewRecipeHandler(r fiber.Router, m middlewares.MiddlewareItf, u usecase.Rec
 	}
 
 	recipes := r.Group("/recipes", m.RequireAuth)
-	recipes.Post("/generate", handler.GenerateRecipes)
+	recipes.Post("/generate", m.Limit(15, time.Minute), handler.GenerateRecipes)
 	recipes.Post("/cook-confirm", handler.ConfirmCook)
 }
 
@@ -29,10 +32,34 @@ func (h *RecipeHandler) GenerateRecipes(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
 
 	req := dto.GenerateRecipeRequest{}
-	_ = c.Bind().Body(&req)
+	if len(c.Body()) > 0 {
+		if err := c.Bind().Body(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error_code": "bad_request",
+				"error":      err.Error(),
+				"message":    "Invalid request body",
+			})
+		}
+
+		if err := h.validator.Struct(req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error_code": "validation_error",
+				"error":      err.Error(),
+				"message":    "Validation failed",
+			})
+		}
+	}
 
 	recipes, err := h.recipeUsecase.GenerateRecipes(userID, req)
 	if err != nil {
+		if errors.Is(err, usecase.ErrNoIngredients) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error_code": "bad_request",
+				"error":      err.Error(),
+				"message":    "Please add or select at least one active ingredient",
+			})
+		}
+
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error_code": "recipe_generation_error",
 			"error":      err.Error(),
@@ -77,7 +104,7 @@ func (h *RecipeHandler) ConfirmCook(c fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"payload": res,
 	})
 }

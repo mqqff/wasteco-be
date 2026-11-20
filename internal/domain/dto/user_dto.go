@@ -18,8 +18,8 @@ type UpdateProfileRequest struct {
 	Name            string  `json:"name" validate:"omitempty,min=2,max=100"`
 	PhoneNumber     string  `json:"phone_number"`
 	AreaName        string  `json:"area_name"`
-	Latitude        float64 `json:"latitude"`
-	Longitude       float64 `json:"longitude"`
+	Latitude        float64 `json:"latitude" validate:"omitempty,latitude"`
+	Longitude       float64 `json:"longitude" validate:"omitempty,longitude"`
 	SharingRadiusKM int     `json:"sharing_radius_km" validate:"omitempty,min=1,max=50"`
 }
 

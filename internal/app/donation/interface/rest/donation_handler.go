@@ -67,9 +67,18 @@ func (h *DonationHandler) CreateRequest(c fiber.Ctx) error {
 
 func (h *DonationHandler) GetNearbyRequests(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
-	userLat, _ := strconv.ParseFloat(c.Query("lat"), 64)
-	userLong, _ := strconv.ParseFloat(c.Query("long"), 64)
-	radiusKM, _ := strconv.ParseFloat(c.Query("radius"), 64)
+	userLat, err := parseOptionalFloat(c.Query("lat"))
+	if err != nil {
+		return invalidQueryError(c, "invalid lat query parameter")
+	}
+	userLong, err := parseOptionalFloat(c.Query("long"))
+	if err != nil {
+		return invalidQueryError(c, "invalid long query parameter")
+	}
+	radiusKM, err := parseOptionalFloat(c.Query("radius"))
+	if err != nil {
+		return invalidQueryError(c, "invalid radius query parameter")
+	}
 
 	donations, err := h.donationUsecase.GetNearbyRequests(userID, c.Query("search"), userLat, userLong, radiusKM)
 	if err != nil {
@@ -91,8 +100,14 @@ func (h *DonationHandler) GetRequestDetail(c fiber.Ctx) error {
 		return invalidIDError(c)
 	}
 
-	userLat, _ := strconv.ParseFloat(c.Query("lat"), 64)
-	userLong, _ := strconv.ParseFloat(c.Query("long"), 64)
+	userLat, err := parseOptionalFloat(c.Query("lat"))
+	if err != nil {
+		return invalidQueryError(c, "invalid lat query parameter")
+	}
+	userLong, err := parseOptionalFloat(c.Query("long"))
+	if err != nil {
+		return invalidQueryError(c, "invalid long query parameter")
+	}
 
 	res, err := h.donationUsecase.GetRequestDetail(userID, id, userLat, userLong)
 	if err != nil {
@@ -108,8 +123,14 @@ func (h *DonationHandler) GetRequestDetail(c fiber.Ctx) error {
 
 func (h *DonationHandler) GetMyRequests(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
+	role := c.Query("role")
+	switch role {
+	case "", "requester", "donor", "all":
+	default:
+		return invalidQueryError(c, "invalid role query parameter")
+	}
 
-	res, err := h.donationUsecase.GetMyRequests(userID)
+	res, err := h.donationUsecase.GetMyRequests(userID, role)
 	if err != nil {
 		return usecaseError(c, err, "Failed to retrieve your donation requests")
 	}
@@ -189,6 +210,21 @@ func (h *DonationHandler) Cancel(c fiber.Ctx) error {
 		"payload": fiber.Map{
 			"cancelled": true,
 		},
+	})
+}
+
+func parseOptionalFloat(raw string) (float64, error) {
+	if raw == "" {
+		return 0, nil
+	}
+	return strconv.ParseFloat(raw, 64)
+}
+
+func invalidQueryError(c fiber.Ctx, errMsg string) error {
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		"error_code": "bad_request",
+		"error":      errMsg,
+		"message":    "Invalid query parameter",
 	})
 }
 

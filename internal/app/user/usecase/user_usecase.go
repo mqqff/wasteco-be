@@ -8,6 +8,8 @@ import (
 	"github.com/mqqff/wasteco-be/internal/domain/dto"
 )
 
+var ErrUserNotFound = errors.New("user not found")
+
 type UserUsecaseItf interface {
 	GetProfile(userID uuid.UUID) (dto.UserProfile, error)
 	UpdateProfile(userID uuid.UUID, req dto.UpdateProfileRequest) (dto.UserProfile, error)
@@ -29,7 +31,7 @@ func (u *UserUsecase) GetProfile(userID uuid.UUID) (dto.UserProfile, error) {
 		return dto.UserProfile{}, err
 	}
 	if user.ID == uuid.Nil {
-		return dto.UserProfile{}, errors.New("user not found")
+		return dto.UserProfile{}, ErrUserNotFound
 	}
 
 	totalPortions, err := u.userRepo.GetContributionSummary(userID)
@@ -58,7 +60,7 @@ func (u *UserUsecase) UpdateProfile(userID uuid.UUID, req dto.UpdateProfileReque
 		return dto.UserProfile{}, err
 	}
 	if user.ID == uuid.Nil {
-		return dto.UserProfile{}, errors.New("user not found")
+		return dto.UserProfile{}, ErrUserNotFound
 	}
 
 	if req.Name != "" {
