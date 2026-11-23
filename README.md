@@ -129,7 +129,5 @@ go run ./cmd/migration/migrate.go -fresh
 
 ## 6. API Documentation
 
-Detailed OpenAPI 3.1 specifications and Figma UI screen mappings are located in the [`docs/`](docs/) directory:
-- [`docs/FIGMA_SPEC.md`](docs/FIGMA_SPEC.md): Complete Figma UI screen to API endpoint reference matrix.
-- [`docs/BACKEND_ISSUES.md`](docs/BACKEND_ISSUES.md): Implementation tracker for all core backend modules.
+Detailed OpenAPI 3.1 specifications are located in the [`docs/`](docs/) directory:
 - [`docs/wasteco_openapi.json`](docs/wasteco_openapi.json): Standard OpenAPI 3.1 specification (importable into Postman, Swagger UI, or Apidog).
