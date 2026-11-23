@@ -48,6 +48,7 @@ func NewHTTPServer() HTTPServerItf {
 		AppName:       env.AppEnv.AppName,
 		CaseSensitive: true,
 		ServerHeader:  env.AppEnv.AppEnv,
+		BodyLimit:     15 * 1024 * 1024,
 		IdleTimeout:   10 * time.Second,
 		JSONDecoder:   sonic.Unmarshal,
 		JSONEncoder:   sonic.Marshal,

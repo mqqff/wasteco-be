@@ -95,6 +95,9 @@ func (u *ImpactUsecase) GetHistory(userID uuid.UUID, page, limit int) (dto.Impac
 	if limit < 1 {
 		limit = 10
 	}
+	if limit > 100 {
+		limit = 100
+	}
 
 	items, total, err := u.impactRepo.FindAllByUserID(userID, page, limit)
 	if err != nil {

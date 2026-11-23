@@ -94,3 +94,25 @@ func TestAddInvalidExpiryAndNotFoundErrors(t *testing.T) {
 		t.Fatalf("other user delete err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestDaysUntilCalendarBoundary(t *testing.T) {
+	wib := time.FixedZone("WIB", 7*3600)
+	expiry := time.Date(2026, 11, 23, 0, 0, 0, 0, wib)
+	earlyMorning := time.Date(2026, 11, 23, 1, 0, 0, 0, wib)
+
+	if got := daysUntil(expiry, earlyMorning); got != 0 {
+		t.Fatalf("same-day 01:00 WIB daysUntil = %d, want 0", got)
+	}
+	if got := resolveActiveStatus("fresh", &expiry, earlyMorning); got != "near_expiry" {
+		t.Fatalf("same-day status = %s, want near_expiry", got)
+	}
+
+	threeDaysLater := time.Date(2026, 11, 26, 0, 0, 0, 0, wib)
+	lateNight := time.Date(2026, 11, 23, 23, 55, 0, 0, wib)
+	if got := daysUntil(threeDaysLater, lateNight); got != 3 {
+		t.Fatalf("H+3 23:55 WIB daysUntil = %d, want 3", got)
+	}
+	if got := resolveActiveStatus("fresh", &threeDaysLater, lateNight); got != "near_expiry" {
+		t.Fatalf("H+3 status = %s, want near_expiry", got)
+	}
+}

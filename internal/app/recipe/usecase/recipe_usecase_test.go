@@ -43,10 +43,27 @@ func (f *fakePantryRepo) Update(item *entity.PantryIngredient) error {
 
 type fakeImpactRepo struct {
 	repository.ImpactRepoItf
+	pantry  *fakePantryRepo
 	created *entity.ImpactActivity
 }
 
-func (f *fakeImpactRepo) Create(a *entity.ImpactActivity) error {
+func (f *fakeImpactRepo) RecordCooking(userID uuid.UUID, deductions []repository.PantryDeduction, a *entity.ImpactActivity) error {
+	for _, d := range deductions {
+		if f.pantry == nil {
+			continue
+		}
+		item, ok := f.pantry.items[d.PantryIngredientID]
+		if !ok || item.UserID != userID {
+			continue
+		}
+		if item.Quantity <= d.Quantity {
+			item.Quantity = 0
+			item.Status = "used"
+		} else {
+			item.Quantity -= d.Quantity
+		}
+		f.pantry.items[d.PantryIngredientID] = item
+	}
 	f.created = a
 	return nil
 }
@@ -76,7 +93,7 @@ func TestConfirmCookDeductsPantryAndLogsPortions(t *testing.T) {
 		riceID: {ID: riceID, UserID: userID, Quantity: 3, Status: "fresh"},
 		eggID:  {ID: eggID, UserID: userID, Quantity: 2, Status: "fresh"},
 	}}
-	impact := &fakeImpactRepo{}
+	impact := &fakeImpactRepo{pantry: pantry}
 	u := NewRecipeUsecase(pantry, impact, nil)
 
 	res, err := u.ConfirmCook(userID, dto.CookConfirmRequest{
@@ -115,7 +132,7 @@ func TestConfirmCookUnitConversionAndSkipsInactive(t *testing.T) {
 		usedID:    {ID: usedID, UserID: userID, Name: "Nasi", Quantity: 0, Unit: "porsi", Status: "used"},
 		spinachID: {ID: spinachID, UserID: userID, Name: "Bayam", Quantity: 2, Unit: "ikat", Status: "near_expiry"},
 	}}
-	impact := &fakeImpactRepo{}
+	impact := &fakeImpactRepo{pantry: pantry}
 	u := NewRecipeUsecase(pantry, impact, nil)
 
 	res, err := u.ConfirmCook(userID, dto.CookConfirmRequest{

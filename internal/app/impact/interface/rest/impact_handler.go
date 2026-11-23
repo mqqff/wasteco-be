@@ -28,8 +28,14 @@ func NewImpactHandler(r fiber.Router, m middlewares.MiddlewareItf, u usecase.Imp
 func (h *ImpactHandler) GetSummary(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
 
-	month, _ := strconv.Atoi(c.Query("month"))
-	year, _ := strconv.Atoi(c.Query("year"))
+	month, err := parseOptionalInt(c.Query("month"))
+	if err != nil || (c.Query("month") != "" && (month < 1 || month > 12)) {
+		return invalidQueryError(c, "month must be an integer between 1 and 12")
+	}
+	year, err := parseOptionalInt(c.Query("year"))
+	if err != nil || (c.Query("year") != "" && (year < 2000 || year > 2100)) {
+		return invalidQueryError(c, "year must be an integer between 2000 and 2100")
+	}
 
 	summary, err := h.impactUsecase.GetMonthlySummary(userID, month, year)
 	if err != nil {
@@ -48,8 +54,14 @@ func (h *ImpactHandler) GetSummary(c fiber.Ctx) error {
 func (h *ImpactHandler) GetHistory(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
 
-	page, _ := strconv.Atoi(c.Query("page"))
-	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, err := parseOptionalInt(c.Query("page"))
+	if err != nil || (c.Query("page") != "" && page < 1) {
+		return invalidQueryError(c, "page must be a positive integer")
+	}
+	limit, err := parseOptionalInt(c.Query("limit"))
+	if err != nil || (c.Query("limit") != "" && limit < 1) {
+		return invalidQueryError(c, "limit must be a positive integer")
+	}
 
 	history, err := h.impactUsecase.GetHistory(userID, page, limit)
 	if err != nil {
@@ -104,5 +116,20 @@ func (h *ImpactHandler) GetDetail(c fiber.Ctx) error {
 		"payload": fiber.Map{
 			"activity": detail,
 		},
+	})
+}
+
+func parseOptionalInt(raw string) (int, error) {
+	if raw == "" {
+		return 0, nil
+	}
+	return strconv.Atoi(raw)
+}
+
+func invalidQueryError(c fiber.Ctx, errMsg string) error {
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		"error_code": "bad_request",
+		"error":      errMsg,
+		"message":    "Invalid query parameter",
 	})
 }

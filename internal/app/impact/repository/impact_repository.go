@@ -18,8 +18,14 @@ type MonthlySummary struct {
 	DonationPortions int     `gorm:"column:donation_portions"`
 }
 
+type PantryDeduction struct {
+	PantryIngredientID uuid.UUID
+	Quantity           float64
+}
+
 type ImpactRepoItf interface {
 	Create(activity *entity.ImpactActivity) error
+	RecordCooking(userID uuid.UUID, deductions []PantryDeduction, activity *entity.ImpactActivity) error
 	FindAllByUserID(userID uuid.UUID, page, limit int) ([]entity.ImpactActivity, int64, error)
 	FindByID(id uuid.UUID) (entity.ImpactActivity, error)
 	GetMonthlySummary(userID uuid.UUID, month, year int) (MonthlySummary, error)
@@ -39,6 +45,32 @@ func (r *ImpactRepo) Create(activity *entity.ImpactActivity) error {
 		log.Error(log.LogInfo{
 			"error": err.Error(),
 		}, "[ImpactRepo][Create] failed to create impact activity")
+	}
+
+	return err
+}
+
+func (r *ImpactRepo) RecordCooking(userID uuid.UUID, deductions []PantryDeduction, activity *entity.ImpactActivity) error {
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		for _, d := range deductions {
+			err := tx.Exec(
+				`UPDATE pantry_ingredients
+				SET status = CASE WHEN quantity <= ? THEN 'used' ELSE status END,
+					quantity = GREATEST(quantity - ?, 0)
+				WHERE id = ? AND user_id = ? AND status IN ('fresh', 'near_expiry')`,
+				d.Quantity, d.Quantity, d.PantryIngredientID, userID,
+			).Error
+			if err != nil {
+				return err
+			}
+		}
+
+		return tx.Create(activity).Error
+	})
+	if err != nil {
+		log.Error(log.LogInfo{
+			"error": err.Error(),
+		}, "[ImpactRepo][RecordCooking] failed to record cooking impact")
 	}
 
 	return err

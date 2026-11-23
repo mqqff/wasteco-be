@@ -56,6 +56,14 @@ func TestImpactEmptyListsAreNonNilAndDetailErrors(t *testing.T) {
 		t.Fatalf("Activities = %#v, want non-nil empty slice", hist.Activities)
 	}
 
+	capped, err := u.GetHistory(userID, 0, 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if capped.Page != 1 || capped.Limit != 100 {
+		t.Fatalf("pagination got page=%d limit=%d, want 1 and 100", capped.Page, capped.Limit)
+	}
+
 	if _, err := u.GetDetail(userID, uuid.New()); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing detail err = %v, want ErrNotFound", err)
 	}

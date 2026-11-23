@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mqqff/wasteco-be/internal/app/user/repository"
@@ -63,20 +64,20 @@ func (u *UserUsecase) UpdateProfile(userID uuid.UUID, req dto.UpdateProfileReque
 		return dto.UserProfile{}, ErrUserNotFound
 	}
 
-	if req.Name != "" {
-		user.Name = req.Name
+	if name := strings.TrimSpace(req.Name); name != "" {
+		user.Name = name
 	}
-	if req.PhoneNumber != "" {
-		user.PhoneNumber = req.PhoneNumber
+	if req.PhoneNumber != nil {
+		user.PhoneNumber = strings.TrimSpace(*req.PhoneNumber)
 	}
-	if req.AreaName != "" {
-		user.AreaName = req.AreaName
+	if area := strings.TrimSpace(req.AreaName); area != "" {
+		user.AreaName = area
 	}
-	if req.Latitude != 0 {
-		user.Latitude = req.Latitude
+	if req.Latitude != nil {
+		user.Latitude = *req.Latitude
 	}
-	if req.Longitude != 0 {
-		user.Longitude = req.Longitude
+	if req.Longitude != nil {
+		user.Longitude = *req.Longitude
 	}
 	if req.SharingRadiusKM > 0 {
 		user.SharingRadiusKM = req.SharingRadiusKM

@@ -115,7 +115,7 @@ func (u *RecipeUsecase) collectIngredients(userID uuid.UUID, req dto.GenerateRec
 
 func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest) (dto.CookConfirmResponse, error) {
 	breakdown := make([]dto.ImpactItemBreakdown, 0, len(req.UsedIngredients))
-	toUpdate := make([]entity.PantryIngredient, 0, len(req.UsedIngredients))
+	deductions := make([]impactRepo.PantryDeduction, 0, len(req.UsedIngredients))
 
 	for _, used := range req.UsedIngredients {
 		if used.IngredientID != "" {
@@ -124,13 +124,10 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 				item, err := u.pantryRepo.FindByID(id)
 				if err == nil && item.UserID == userID && isActivePantryStatus(item.Status) {
 					if deductQty, ok := unit.ConvertQuantity(used.Quantity, used.Unit, item.Unit); ok {
-						if item.Quantity <= deductQty {
-							item.Quantity = 0
-							item.Status = "used"
-						} else {
-							item.Quantity -= deductQty
-						}
-						toUpdate = append(toUpdate, item)
+						deductions = append(deductions, impactRepo.PantryDeduction{
+							PantryIngredientID: item.ID,
+							Quantity:           deductQty,
+						})
 					}
 				}
 			}
@@ -141,12 +138,6 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 			Quantity: used.Quantity,
 			Unit:     used.Unit,
 		})
-	}
-
-	for i := range toUpdate {
-		if err := u.pantryRepo.Update(&toUpdate[i]); err != nil {
-			return dto.CookConfirmResponse{}, err
-		}
 	}
 
 	co2Prevented := math.Round(float64(req.Portions)*0.21*100) / 100
@@ -164,7 +155,7 @@ func (u *RecipeUsecase) ConfirmCook(userID uuid.UUID, req dto.CookConfirmRequest
 		ItemsBreakdown: string(breakdownJSON),
 	}
 
-	err := u.impactRepo.Create(&activity)
+	err := u.impactRepo.RecordCooking(userID, deductions, &activity)
 	if err != nil {
 		return dto.CookConfirmResponse{}, err
 	}

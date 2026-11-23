@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"errors"
-	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -109,7 +108,7 @@ func (u *PantryUsecase) ScanIngredients(image []byte, mimeType string) ([]gemini
 }
 
 func parseExpiryDate(raw string) (*time.Time, error) {
-	parsed, err := time.Parse("2006-01-02", raw)
+	parsed, err := time.ParseInLocation("2006-01-02", raw, time.Local)
 	if err != nil {
 		return nil, ErrInvalidExpiryDate
 	}
@@ -127,7 +126,9 @@ func resolveActiveStatus(status string, expiryDate *time.Time, now time.Time) st
 }
 
 func daysUntil(expiry, now time.Time) int {
-	return int(math.Ceil(expiry.Sub(now).Hours() / 24))
+	expDay := time.Date(expiry.Year(), expiry.Month(), expiry.Day(), 0, 0, 0, 0, time.UTC)
+	nowDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	return int(expDay.Sub(nowDay).Hours() / 24)
 }
 
 func newPantryItem(userID uuid.UUID, req dto.CreatePantryItemRequest) (entity.PantryIngredient, error) {

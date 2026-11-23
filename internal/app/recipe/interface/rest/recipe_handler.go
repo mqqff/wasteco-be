@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -77,8 +78,8 @@ func (h *RecipeHandler) generateRecipesFromImage(c fiber.Ctx, userID uuid.UUID) 
 
 	req := dto.GenerateRecipeRequest{}
 	if form, err := c.MultipartForm(); err == nil && form != nil {
-		req.IngredientIDs = form.Value["ingredient_ids"]
-		req.CustomIngredients = form.Value["custom_ingredients"]
+		req.IngredientIDs = parseMultipartSlice(form.Value["ingredient_ids"])
+		req.CustomIngredients = parseMultipartSlice(form.Value["custom_ingredients"])
 		if err := h.validator.Struct(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error_code": "validation_error",
@@ -150,4 +151,31 @@ func (h *RecipeHandler) ConfirmCook(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"payload": res,
 	})
+}
+
+func parseMultipartSlice(values []string) []string {
+	var out []string
+	for _, raw := range values {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			var parsed []string
+			if err := sonic.Unmarshal([]byte(trimmed), &parsed); err == nil {
+				for _, item := range parsed {
+					if v := strings.TrimSpace(item); v != "" {
+						out = append(out, v)
+					}
+				}
+				continue
+			}
+		}
+		for _, part := range strings.Split(trimmed, ",") {
+			if v := strings.TrimSpace(part); v != "" {
+				out = append(out, v)
+			}
+		}
+	}
+	return out
 }
